@@ -1,0 +1,181 @@
+#include <windows.h>
+#include <GL/glut.h>
+#include <stdlib.h>
+#include <math.h>
+#include <iostream>
+
+using namespace std;
+
+// Global variables for animation and transformation
+float theta = 0.0; // rotation angle
+float scale1 = 1.0; // scaling value for icons
+float dx = 7.0, dy = -3.0; // translation values
+int frame = 1;
+
+// Function declarations
+void RenderScene(void);
+void DrawsAllIcons(float[], float[], int, int[], int[], float[], float[], float[], float, float, float, float, float);
+void loadSquareIcon(float[], float[], int[], int&);
+void loadTrapezoidIcon(float[], float[], int[], int&);
+void setTransform(float[][3], float, float, float);
+void transformIcon(float[], float[], float[][3], float[], float[]);
+void SetupRC(void);
+void TimerFunction(int);
+
+// Main Program
+int main(int argc, char** argv)
+{
+    // Set up the window title
+    char header[] = "Icon Drawing by Lukas Siemers";
+
+    glutInit(&argc, argv);
+    // Set up the display mode with a double buffer and RGB colors
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    // Initialize window size and position
+    glutInitWindowSize(560, 440);
+    glutInitWindowPosition(140, 20);
+    // Initialize background color in window
+    SetupRC();
+    // Open and label the window
+    glutCreateWindow(header);
+    glutDisplayFunc(RenderScene);
+    glutTimerFunc(30, TimerFunction, 1);
+    // Start the main loop
+    glutMainLoop();
+
+    return 0;
+}
+
+// RenderScene Function to handle drawing
+void RenderScene(void)
+{
+    float px[4], py[4]; // coordinates for square or trapezoid
+    float transformedX[4], transformedY[4]; // transformed coordinates
+    float transformMatrix[3][3]; // transformation matrix
+    int pointsperdraw[1], ndraws;
+    float colorr[1] = { 1.0 }, colorg[1] = { 0.0 }, colorb[1] = { 0.0 }; // Red color for the icon
+
+    // Clear the window with the background color
+    glClear(GL_COLOR_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    // Set the viewport to the window dimensions
+    glViewport(0, 0, 540, 440);
+    // Establish the clipping volume in user units
+    glOrtho(-10.0, 10.0, -10.0, 10.0, -1.0, 1.0);
+
+    // Load and draw the square icon
+    loadSquareIcon(px, py, pointsperdraw, ndraws);
+    setTransform(transformMatrix, scale1, dx, dy);
+    transformIcon(transformedX, transformedY, transformMatrix, px, py);
+    DrawsAllIcons(transformedX, transformedY, ndraws, pointsperdraw, pointsperdraw, colorr, colorg, colorb, theta, scale1, scale1, dx, dy);
+
+    // Load and draw the trapezoid icon
+    loadTrapezoidIcon(px, py, pointsperdraw, ndraws);
+    setTransform(transformMatrix, scale1, -dx, dy); // Different translation for trapezoid
+    transformIcon(transformedX, transformedY, transformMatrix, px, py);
+    DrawsAllIcons(transformedX, transformedY, ndraws, pointsperdraw, pointsperdraw, colorr, colorg, colorb, theta, scale1, scale1, -dx, dy);
+
+    glutSwapBuffers(); // Swap buffers for smooth animation
+
+    return;
+}
+
+// DrawsAllIcons Function
+void DrawsAllIcons(float x[], float y[], int ndraws, int pointsperdraw[], int drawtype[],
+    float colorr[], float colorg[], float colorb[],
+    float rotate, float scalex, float scaley, float transx, float transy) {
+
+    glPushMatrix();
+
+    // Apply transformations
+    glTranslatef(transx, transy, 0.0f);  // Translate
+    glRotatef(rotate, 0.0f, 0.0f, 1.0f);  // Rotate
+    glScalef(scalex, scaley, 1.0f);  // Scale
+
+    glColor3f(colorr[0], colorg[0], colorb[0]);  // Set color
+
+    glBegin(GL_LINE_LOOP); // Drawing the polygon
+    for (int i = 0; i < pointsperdraw[0]; i++) {
+        glVertex2f(x[i], y[i]);
+    }
+    glEnd();
+
+    glPopMatrix();
+}
+
+// Load Square Icon Function
+void loadSquareIcon(float px[], float py[], int pointsperdraw[], int& ndraws)
+{
+    px[0] = 1.0; py[0] = 1.0;
+    px[1] = 1.0; py[1] = -1.0;
+    px[2] = -1.0; py[2] = -1.0;
+    px[3] = -1.0; py[3] = 1.0;
+
+    pointsperdraw[0] = 4;  // Square has 4 points
+    ndraws = 1;  // 1 draw call
+
+    return;
+}
+
+// Load Trapezoid Icon Function
+void loadTrapezoidIcon(float px[], float py[], int pointsperdraw[], int& ndraws)
+{
+    px[0] = 1.0; py[0] = 1.0;
+    px[1] = 1.5; py[1] = -1.0;
+    px[2] = -1.5; py[2] = -1.0;
+    px[3] = -1.0; py[3] = 1.0;
+
+    pointsperdraw[0] = 4;  // Trapezoid has 4 points
+    ndraws = 1;  // 1 draw call
+
+    return;
+}
+
+// Transformation Matrix Setup Function
+void setTransform(float t[][3], float scale, float dx, float dy)
+{
+    // Initialize identity matrix
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            t[i][j] = (i == j) ? 1.0 : 0.0;
+
+    // Set scaling
+    t[0][0] = scale;
+    t[1][1] = scale;
+
+    // Set translation
+    t[2][0] = dx;
+    t[2][1] = dy;
+}
+
+// Transform the Icon Coordinates
+void transformIcon(float pxp[], float pyp[], float t[][3], float px[], float py[])
+{
+    for (int i = 0; i < 4; i++) {
+        pxp[i] = px[i] * t[0][0] + t[2][0]; // Apply scale and translation
+        pyp[i] = py[i] * t[1][1] + t[2][1]; // Apply scale and translation
+    }
+}
+
+// SetupRC: Set up the rendering context (background color)
+void SetupRC(void)
+{
+    glClearColor(0.0, 0.0, 0.5, 1.0);  // Dark blue background
+}
+
+// TimerFunction: Animation logic for rotation and movement
+void TimerFunction(int value)
+{
+    theta += 5.0; // Increment rotation angle
+    if (theta >= 360.0)
+        theta = 0.0;
+
+    // Example movement logic (can be adjusted)
+    dx -= 0.05;
+    if (dx <= -7.0) dx = 7.0;
+
+    // Redisplay the scene
+    glutPostRedisplay();
+    glutTimerFunc(33, TimerFunction, 1);
+}
