@@ -6,8 +6,6 @@ Double check the feet coordinates
 
 
 */
-
-
 #include <windows.h>
 #include <GL/glut.h>    
 #include <stdlib.h>
@@ -21,6 +19,7 @@ float theta = 0.0; // global angular value for rotation
 float dx = 7.0, dy = -3.0; // global movement value for dx and dy
 int frame = 1;
 bool mouthOpen = false;
+bool isWalking = true;
 
 void RenderScene(void);
 void loadicon(float[], float[]);
@@ -36,7 +35,7 @@ void TimerFunction(int);
 int main(int argc, char** argv)
 {
     // set up window title
-    char header[] = "PolyMan Animation";
+    char header[] = "PolyMan Animation by Lukas Siemers";
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
@@ -73,15 +72,14 @@ void RenderScene(void)
 
     float time = glutGet(GLUT_ELAPSED_TIME) / walkSpeed;
 
-
-    // Adjust the y-coordinates of the feet (indices 9-14) for a walking motion
-    pyp[9] += walkAmplitude * sin(time);  // Foot #1 (9)
-    pyp[10] += walkAmplitude * sin(time); // Foot #1 (10)
-    pyp[11] += walkAmplitude * sin(time); // Foot #1 (11)
-    pyp[12] += walkAmplitude * cos(time); // Foot #2 (12)
-    pyp[13] += walkAmplitude * cos(time); // Foot #2 (13)
-    pyp[14] += walkAmplitude * cos(time); // Foot #2 (14)
-    
+    if (frame == 1 || frame == 5) {
+        pyp[9] += walkAmplitude * sin(time);  // Foot #1 (9)
+        pyp[10] += walkAmplitude * sin(time); // Foot #1 (10)
+        pyp[11] += walkAmplitude * sin(time); // Foot #1 (11)
+        pyp[12] += walkAmplitude * cos(time); // Foot #2 (12)
+        pyp[13] += walkAmplitude * cos(time); // Foot #2 (13)
+        pyp[14] += walkAmplitude * cos(time); // Foot #2 (14)
+    }
     drawicon(pxp, pyp);  // Draw transformed points
 
     glFlush();
@@ -105,19 +103,20 @@ void loadicon(float px[], float py[])
 
     px[8] = -1.0 / 2.0; py[8] = 1.0 / 2.0;      // Eye
 
-    px[9] = -(1.0 / 4.0); py[9] = -(1.0 / 2.0);     // Foot #1
-    px[10] = -(1.0 / 4.0); py[10] = -1.0;         // Foot #1
-    px[11] = -(1.0 / 2.0); py[11] = -1.0;         // Foot #1
-    px[12] = (1.0 / 4.0); py[12] = -(1.0 / 2.0);    // Foot #2
-    px[13] = (1.0 / 4.0); py[13] = -1.0;          // Foot #2
-    px[14] = 0; py[14] = -1.0;                  // Foot #2
+    px[9] = -1.0 / 4.0; py[9] = -1.0 / 2.0;  // Foot #1 (top)
+    px[10] = -1.0 / 4.0; py[10] = -1.0;        // Foot #1 (bottom)
+    px[11] = -1.0 / 2.0; py[11] = -1.0;        // Foot #1 (left bottom)
+
+    px[12] = 1.0 / 4.0;  py[12] = -1.0 / 2.0;  // Foot #2 (top)
+    px[13] = 1.0 / 4.0;  py[13] = -1.0;        // Foot #2 (bottom)
+    px[14] = 0;          py[14] = -1.0;        // Foot #2 (middle bottom)
 }
 
 /************************* function drawicon ***************************/
 void drawicon(float pxp[], float pyp[])
 {
     // Draw Polyman's body (hexagon) using the 6 transformed points
-    glColor3f(0.0, 0.0, 0.0);  // Green fill for the body
+    glColor3f(1.0, 1.0, 0.0);  // Green fill for the body
     glBegin(GL_POLYGON); // Draw hexagon body
     for (int i = 0; i < 6; i++) {
         glVertex2f(pxp[i], pyp[i]);
@@ -125,7 +124,7 @@ void drawicon(float pxp[], float pyp[])
     glEnd();
 
     // Draw the outline of Polyman's body (hexagon shape)
-    glColor3f(1.0, 0.0, 0.0); // Black outline for the body
+    glColor3f(0.0, 0.0, 1.0); // Black outline for the body
     glBegin(GL_LINE_LOOP); // Draw hexagon outline
     for (int i = 0; i < 6; i++) {
         glVertex2f(pxp[i], pyp[i]);
@@ -134,9 +133,8 @@ void drawicon(float pxp[], float pyp[])
 
     if (mouthOpen) {
         // Open mouth: Draw two lines and fill the background
-
         // Red color for the inside of the open mouth
-        glColor3f(0.8, 0.0, 0.0);
+        glColor3f(0.8, 0.2, 0.2);
         glBegin(GL_TRIANGLES);
         glVertex2f(pxp[6], pyp[6]);  // Mouth corner (left)
         glVertex2f(pxp[7], pyp[7]);  // Mouth corner (right)
@@ -144,7 +142,7 @@ void drawicon(float pxp[], float pyp[])
         glEnd();
 
         // Black color for the lines around the open mouth
-        glColor3f(0.4, 0.0, 0.0);
+        glColor3f(0.0, 0.0, 1.0);
         glBegin(GL_LINES);
         // Top line of the mouth
         glVertex2f(pxp[6], pyp[6]);
@@ -158,7 +156,7 @@ void drawicon(float pxp[], float pyp[])
     }
     else {
         // Closed mouth: Draw a single straight line
-        glColor3f(1.0, 0.0, 0.0);
+        glColor3f(0.0, 0.0, 1.0);
         glBegin(GL_LINES);
         glVertex2f(pxp[6], pyp[6]);  // Mouth corner (left)
         glVertex2f(pxp[7], pyp[7]);  // Mouth corner (right)
@@ -172,14 +170,26 @@ void drawicon(float pxp[], float pyp[])
     glVertex2f(pxp[8], pyp[8]); // Eye
     glEnd();
 
-    // Draw feet
-    glPointSize(8.0);
-    glBegin(GL_POLYGON);
-    glColor3f(0.8, 0.3, 0.1); // Brownish color for feet
-    for (int i = 9; i <= 14; i++) {
-        glVertex2f(pxp[i], pyp[i]); // Draw feet using points 9 to 14
-    }
-    glEnd();
+        // Draw feet as lines (no triangles)
+        glColor3f(0.0, 0.0, 1.0); // Brownish color for feet
+        glBegin(GL_LINES);
+        // Foot #1
+        glVertex2f(pxp[9], pyp[9]);   // Top of foot #1
+        glVertex2f(pxp[10], pyp[10]); // Bottom left of foot #1
+
+        glVertex2f(pxp[10], pyp[10]); // Bottom left of foot #1
+        glVertex2f(pxp[11], pyp[11]); // Bottom right of foot #1
+
+        // Foot #2
+        glVertex2f(pxp[12], pyp[12]); // Top of foot #2
+        glVertex2f(pxp[13], pyp[13]); // Bottom left of foot #2
+
+        glVertex2f(pxp[13], pyp[13]); // Bottom left of foot #2
+        glVertex2f(pxp[14], pyp[14]); // Bottom right of foot #2
+		glEnd();
+    
+   
+   
 }
 
 /************************** function settrans ***********************/
@@ -239,9 +249,6 @@ void SetupRC(void)
 {
     glClearColor(0.0, 0.0, 1.0, 1.0);
 }
-
-/******************************** Function Timer ****************************************/
-/******************************** Function Timer ****************************************/
 /******************************** Function Timer ****************************************/
 void TimerFunction(int value)
 {
@@ -259,14 +266,14 @@ void TimerFunction(int value)
             dx = 0.0;
 			mouthOpen = true;   // Open the mouth for the jump
             frame = 2;
+
         }
         break;
 
 	case 2: //Jumping in the middle
         dy += jumpSpeed;
         if (dy >= 2.0) {
-            frame = 3;
-        }
+            frame = 3;        }
         break;
 
     case 3:
@@ -292,8 +299,6 @@ void TimerFunction(int value)
         }
         break;
     }
-
-    
 
     // Update and redraw the scene
     glutPostRedisplay();
