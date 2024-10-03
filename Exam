@@ -10,7 +10,7 @@ using namespace std;
 float angle = 0.0;
 
 void DrawAllIcons(
-    float x[], float y[], int ndraws, int pointsperdraw[], int drawtype[],float colorr[], float colorg[], float colorb[],float rotate, float scalex, float scaley, float transx, float transy) {
+    float x[], float y[], int ndraws, int pointsperdraw[], int drawtype[], float colorr[], float colorg[], float colorb[], float rotate, float scalex, float scaley, float transx, float transy) {
     // Use MODELVIEW matrix
     glMatrixMode(GL_MODELVIEW);
 
@@ -25,15 +25,15 @@ void DrawAllIcons(
     for (int i = 0; i < ndraws; ++i) {
         glColor3f(colorr[i], colorg[i], colorb[i]); // Set the color for this draw
 
-        
-       GLenum mode;
+
+        GLenum mode;
         if (drawtype[i] == 1)
             mode = GL_LINES;
         else if (drawtype[i] == 2)
             mode = GL_LINE_STRIP;
         else if (drawtype[i] == 3)
             mode = GL_POLYGON;
-        
+
         glBegin(mode);
 
         for (int j = 0; j < pointsperdraw[i]; ++j) {         // Draw the points
@@ -58,7 +58,7 @@ void display(void) {
         x[1] = 1.0; y[1] = -1.0;
         x[2] = -1.0; y[2] = -1.0;
         x[3] = -1.0; y[3] = 1.0;
-        x[4] = 1.0; y[4] = 1.0; 
+        x[4] = 1.0; y[4] = 1.0;
 
         // Second draw: Line 
         x[5] = 0.0; y[5] = 2.0;
@@ -67,17 +67,17 @@ void display(void) {
         int ndraws = 2;
         int pointsperdraw[] = { 5, 2 };
         int drawtype[] = { 3, 1 }; // GL_LINE_STRIP, GL_LINES
-        float colorr[] = { 1.0, 1.0};
-        float colorg[] = { 0.0, 1.0};
-        float colorb[] = { 0.0, 1.0};
+        float colorr[] = { 1.0, 1.0 };
+        float colorg[] = { 0.0, 1.0 };
+        float colorb[] = { 0.0, 1.0 };
 
         float rotate_angle = angle;
-		float scalex = 2.0;     //Size of the icon
-		float scaley = 2.0;	    //Size of the icon
-		float transx = 5.0;     //Location of the icon
-		float transy = 5.0;	    //Location of the icon
+        float scalex = 2.0;     //Size of the icon
+        float scaley = 2.0;	    //Size of the icon
+        float transx = 5.0;     //Location of the icon
+        float transy = 5.0;	    //Location of the icon
 
-		DrawAllIcons(x, y, ndraws, pointsperdraw, drawtype, colorr, colorg, colorb, rotate_angle, scalex, scaley, transx, transy); // Draw the icon
+        DrawAllIcons(x, y, ndraws, pointsperdraw, drawtype, colorr, colorg, colorb, rotate_angle, scalex, scaley, transx, transy); // Draw the icon
     }
 
     // Trapezoid Icon
@@ -90,7 +90,7 @@ void display(void) {
         x[1] = 1.5; y[1] = -1.0;
         x[2] = -1.5; y[2] = -1.0;
         x[3] = -1.0; y[3] = 1.0;
-        x[4] = 1.0; y[4] = 1.0; 
+        x[4] = 1.0; y[4] = 1.0;
 
         // Second draw: Line
         x[5] = 0.0; y[5] = 2.0;
@@ -104,10 +104,10 @@ void display(void) {
         float colorb[] = { 0.0, 1.0 };
 
         float rotate_angle = angle;
-		float scalex = 2.0;     //Size of the icon
-		float scaley = 2.0;     //Size of the icon
-		float transx = -5.0;    //Location of the icon
-		float transy = -5.0;	//Location of the icon
+        float scalex = 2.0;     //Size of the icon
+        float scaley = 2.0;     //Size of the icon
+        float transx = -5.0;    //Location of the icon
+        float transy = -5.0;	//Location of the icon
 
         DrawAllIcons(x, y, ndraws, pointsperdraw, drawtype,
             colorr, colorg, colorb, rotate_angle,
@@ -116,7 +116,7 @@ void display(void) {
 
     // Composite Icon (Square on Trapezoid)
     {
-        
+
         float x[12];
         float y[12];
 
@@ -125,14 +125,14 @@ void display(void) {
         x[1] = 1.0; y[1] = 0.0;
         x[2] = -1.0; y[2] = 0.0;
         x[3] = -1.0; y[3] = 1.0;
-        x[4] = 1.0; y[4] = 1.0; 
+        x[4] = 1.0; y[4] = 1.0;
 
         // Second draw: Trapezoid 
         x[5] = 1.5; y[5] = 0.0;
         x[6] = 2.0; y[6] = -1.0;
         x[7] = -2.0; y[7] = -1.0;
         x[8] = -1.5; y[8] = 0.0;
-        x[9] = 1.5; y[9] = 0.0; 
+        x[9] = 1.5; y[9] = 0.0;
 
         // Third draw: Line 
         x[10] = 0.0; y[10] = 3.0;
@@ -146,10 +146,10 @@ void display(void) {
         float colorb[] = { 0.0, 0.0, 1.0 };
 
         float rotate_angle = angle;
-		float scalex = 1.0;	    //Size of the icon
-		float scaley = 1.0;     //Size of the icon
-		float transx = 0.0;     //Location of the icon
-		float transy = 0.0;     //Location of the icon
+        float scalex = 1.0;	    //Size of the icon
+        float scaley = 1.0;     //Size of the icon
+        float transx = 0.0;     //Location of the icon
+        float transy = 0.0;     //Location of the icon
 
         DrawAllIcons(x, y, ndraws, pointsperdraw, drawtype,
             colorr, colorg, colorb, rotate_angle,
@@ -160,7 +160,7 @@ void display(void) {
 }
 
 void idle(void) {
-	angle += 0.1;       //Speed of rotation
+    angle += 0.01;       //Speed of rotation
     if (angle > 360.0)
         angle -= 360.0;
     glutPostRedisplay();
@@ -169,7 +169,7 @@ void idle(void) {
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-    glutInitWindowSize(800, 600); 
+    glutInitWindowSize(800, 600);
     glutInitWindowPosition(100, 100);
     glutCreateWindow("Draw All Icons by Lukas Siemers");
     glClearColor(0.0, 0.0, 0.0, 0.0);
