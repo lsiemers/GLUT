@@ -28,7 +28,7 @@ void SetupRC(void);
 void TimerFunction(int);
 
 // Main Program
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
     char header[] = "Polyman and Polywoman Animation by Lukas Siemers";
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
@@ -127,7 +127,7 @@ void loadPolyman(float px[], float py[]) {
 
 // ****************************** Load Polywoman Function ************************************
 void loadPolywoman(float px[], float py[]) {
-       //trapezoid (top)
+    //trapezoid (top)
     px[0] = -5.0 / 8.0; py[0] = 3.0 / 4.0;  // Top left
     px[1] = 5.0 / 8.0;  py[1] = 3.0 / 4.0;   // Top right
     px[2] = 9.0 / 8.0;  py[2] = 0.0;        // Bottom right
@@ -188,8 +188,8 @@ void drawPolyman(float pxp[], float pyp[]) {
 
     if (polyman_mouthOpen) {
         glBegin(GL_POLYGON);
-        glVertex2f(pxp[4]=0, pyp[4]=0);  // Top right
-        glVertex2f(pxp[5] , pyp[5]);  // Top right
+        glVertex2f(pxp[4] = 0, pyp[4] = 0);  // Top right
+        glVertex2f(pxp[5], pyp[5]);  // Top right
         glVertex2f(pxp[6], pyp[6]);  // Bottom right
         glVertex2f(pxp[7], pyp[7]);  // Bottom left 
         glEnd();
@@ -244,7 +244,7 @@ void drawPolywoman(float pxp[], float pyp[]) {
     // If the mouth is open, reshape the lower trapezoid and skip drawing the left line
     if (polywoman_mouthOpen) {
         glBegin(GL_POLYGON);
-		glVertex2f(pxp[4], pyp[4]);  // Top left
+        glVertex2f(pxp[4], pyp[4]);  // Top left
         glVertex2f(pxp[5] = 0, pyp[5] = 0);  // Top right
         glVertex2f(pxp[6], pyp[6]);  // Bottom right
         glVertex2f(pxp[7], pyp[7]);  // Bottom left
@@ -297,13 +297,13 @@ void drawPolywoman(float pxp[], float pyp[]) {
 
     glColor3f(0.4, 0.26, 0.13);
     // Outline for spike 1
-    glBegin(GL_LINE_LOOP);
+    glBegin(GL_POLYGON);
     glVertex2f(pxp[15], pyp[15]);
     glVertex2f(pxp[16], pyp[16]);
     glVertex2f(pxp[17], pyp[17]);
     glEnd();
     // Outline for spike 2
-    glBegin(GL_LINE_LOOP);
+    glBegin(GL_POLYGON);
     glVertex2f(pxp[17], pyp[17]);
     glVertex2f(pxp[18], pyp[18]);
     glVertex2f(pxp[19], pyp[19]);
