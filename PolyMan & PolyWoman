@@ -1,0 +1,407 @@
+#include <windows.h>
+#include <GL/glut.h>
+#include <stdlib.h>
+#include <math.h>
+#include <iostream>
+
+using namespace std;
+
+// *********** Global values ************************************************
+float polyman_theta = 0.0;    // Polyman's rotation angle
+float polyman_dx = 8.0, polyman_dy = -3.0;  // Polyman's position
+float polywoman_theta = 0.0;  // Polywoman's rotation angle
+float polywoman_dx = -8.0, polywoman_dy = -3.0; // Polywoman's position
+
+int frame = 1;
+bool polyman_mouthOpen = false;
+bool polywoman_mouthOpen = false;
+bool isWalking = true;
+
+// Function prototypes
+void RenderScene(void);
+void loadPolyman(float[], float[]);
+void drawPolyman(float[], float[]);
+void loadPolywoman(float[], float[]);
+void drawPolywoman(float[], float[]);
+void setTrans(float, float, float, float);  // Apply ModelView transformations
+void SetupRC(void);
+void TimerFunction(int);
+
+// Main Program
+int main(int argc, char** argv){
+    char header[] = "Polyman and Polywoman Animation by Lukas Siemers";
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitWindowSize(560, 440);
+    glutInitWindowPosition(140, 20);
+    SetupRC();
+    glutCreateWindow(header);
+    glutDisplayFunc(RenderScene);
+    glutTimerFunc(30, TimerFunction, 1);
+    glutMainLoop();
+    return 0;
+}
+
+// ************************* RenderScene Function *************************
+void RenderScene(void) {
+    float px_polyman[15], py_polyman[15];
+    float px_polywoman[27], py_polywoman[27];
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glViewport(0, 0, 540, 440);
+    glOrtho(-10.0, 10.0, -7.0, 7.0, 1.0, -1.0);
+
+    // Load Polyman and Polywoman shapes
+    loadPolyman(px_polyman, py_polyman);
+    loadPolywoman(px_polywoman, py_polywoman);
+
+    if (frame == 1 || frame == 5) {
+        float walkAmplitude = 0.15;  // Height of walking animation
+        float walkSpeed = 5.0;       // Walking speed
+        float time = glutGet(GLUT_ELAPSED_TIME) / walkSpeed;
+        py_polyman[9] += walkAmplitude * sin(time);  // Foot #1 (top)
+        py_polyman[10] += walkAmplitude * sin(time); // Foot #1 (bottom left)
+        py_polyman[11] += walkAmplitude * sin(time); // Foot #1 (bottom right)
+
+        py_polyman[12] += walkAmplitude * cos(time); // Foot #2 (top)
+        py_polyman[13] += walkAmplitude * cos(time); // Foot #2 (bottom left)
+        py_polyman[14] += walkAmplitude * cos(time); // Foot #2 (bottom right)
+    }
+
+    //walking frames (frames 2 and 5)
+    if (frame == 2 || frame == 5) {
+        float walkAmplitude = 0.15;  // Height of walking animation
+        float walkSpeed = 5.0;       // Walking speed 
+        float time = glutGet(GLUT_ELAPSED_TIME) / walkSpeed;
+        py_polywoman[9] += walkAmplitude * sin(time);  // Foot #1 (top)
+        py_polywoman[10] += walkAmplitude * sin(time); // Foot #1 (bottom left)
+        py_polywoman[11] += walkAmplitude * sin(time); // Foot #1 (bottom right)
+
+        py_polywoman[12] += walkAmplitude * cos(time); // Foot #2 (top)
+        py_polywoman[13] += walkAmplitude * cos(time); // Foot #2 (bottom left)
+        py_polywoman[14] += walkAmplitude * cos(time); // Foot #2 (bottom right)
+    }
+    // Draw Polyman
+    glPushMatrix();
+    setTrans(polyman_dx, polyman_dy, polyman_theta, 1.0);
+    drawPolyman(px_polyman, py_polyman);
+    glPopMatrix();
+
+    // Draw Polywoman
+    glPushMatrix();
+    setTrans(polywoman_dx, polywoman_dy, polywoman_theta, 1.0);
+    drawPolywoman(px_polywoman, py_polywoman);
+    glPopMatrix();
+
+    glFlush();
+    glutSwapBuffers();
+}
+
+
+
+
+// ****************************** Load Polyman Function ***********************************
+void loadPolyman(float px[], float py[]) {
+    //trapezoid (top)
+    px[0] = -5.0 / 8.0; py[0] = 3.0 / 4.0;  // Top left
+    px[1] = 5.0 / 8.0;  py[1] = 3.0 / 4.0;   // Top right
+    px[2] = 9.0 / 8.0;  py[2] = 0.0;        // Bottom right
+    px[3] = -9.0 / 8.0; py[3] = 0.0;        // Bottom left
+
+    //trapezoid (bottom)
+    px[4] = -9.0 / 8.0; py[4] = 0.0;         // Top left of bottom trapezoid
+    px[5] = 9.0 / 8.0;  py[5] = 0.0;         // Top right of bottom trapezoid
+    px[6] = 5.0 / 8.0;  py[6] = -3.0 / 4.0;  // Bottom right
+    px[7] = -5.0 / 8.0; py[7] = -3.0 / 4.0;  // Bottom left
+
+    px[8] = -1.0 / 4.0;  py[8] = -1.0 / 2.0;     // Foot #1 (top)
+    px[9] = -1.0 / 4.0;  py[9] = -1.0;          // Foot #1 (bottom left)
+    px[10] = -1.0 / 2.0; py[10] = -1.0;          // Foot #1 (bottom right)
+
+    px[11] = 1.0 / 4.0; py[11] = -1.0 / 2.0;   // Foot #2 (top)
+    px[12] = 1.0 / 4.0; py[12] = -1.0;         // Foot #2 (bottom left)
+    px[13] = 0.0;        py[13] = -1.0;        // Foot #2 (middle bottom)
+}
+
+// ****************************** Load Polywoman Function ************************************
+void loadPolywoman(float px[], float py[]) {
+       //trapezoid (top)
+    px[0] = -5.0 / 8.0; py[0] = 3.0 / 4.0;  // Top left
+    px[1] = 5.0 / 8.0;  py[1] = 3.0 / 4.0;   // Top right
+    px[2] = 9.0 / 8.0;  py[2] = 0.0;        // Bottom right
+    px[3] = -9.0 / 8.0; py[3] = 0.0;        // Bottom left
+
+    //trapezoid (bottom)
+    px[4] = -9.0 / 8.0; py[4] = 0.0;         // Top left of bottom trapezoid
+    px[5] = 9.0 / 8.0;  py[5] = 0.0;         // Top right of bottom trapezoid
+    px[6] = 5.0 / 8.0;  py[6] = -3.0 / 4.0;  // Bottom right
+    px[7] = -5.0 / 8.0; py[7] = -3.0 / 4.0;  // Bottom left
+
+    px[8] = 1.0 / 4.0;  py[8] = -1.0 / 2.0;     // Foot #1 (top)
+    px[9] = 1.0 / 4.0;  py[9] = -1.0;          // Foot #1 (bottom left)
+    px[10] = 1.0 / 2.0; py[10] = -1.0;          // Foot #1 (bottom right)
+
+    px[11] = -1.0 / 4.0; py[11] = -1.0 / 2.0;   // Foot #2 (top)
+    px[12] = -1.0 / 4.0; py[12] = -1.0;         // Foot #2 (bottom left)
+    px[13] = 0.0;        py[13] = -1.0;        // Foot #2 (middle bottom)
+
+    // Hair spike 1
+    px[15] = -5.0 / 8.0; py[15] = 3.0 / 4.0;    // Base left 
+    px[16] = -0; py[16] = 0;                    // Tip of spike 1
+
+    // Hair spike 2
+    px[17] = 0.0;         py[17] = 3.0 / 4.0;   // Base middle
+    px[18] = 0.0;         py[18] = 0;         // Tip of spike 2
+
+    // Hair spike 3
+    px[19] = 5.0 / 8.0;   py[19] = 3.0 / 4.0;   // Base right 
+    px[20] = 0;   py[20] = 0;         // Tip of spike 3
+
+    px[21] = 0.0;           py[21] = py[1] + 0.1;  // Just above the top point of the head
+
+    // Left loop of the bow (made bigger)
+    px[22] = -0.5;          py[22] = py[1] + 0.6;  // Far left point
+    px[23] = -0.2;          py[23] = py[1] + 0.9;  // Top left point
+
+    // Right loop of the bow (made bigger)
+    px[24] = 0.5;           py[24] = py[1] + 0.6;  // Far right point
+    px[25] = 0.2;           py[25] = py[1] + 0.9;  // Top right point
+
+    // Bottom point to close the loops (optional)
+    px[26] = px[21];        py[26] = py[21];       // Same as bow center
+}
+
+
+// ************************* Draw Polyman Function *************************
+void drawPolyman(float pxp[], float pyp[]) {
+    glColor3f(1.0, 1.0, 0.0);  //color for the body
+
+    // Draw the first trapezoid top as a wireframe
+    glBegin(GL_POLYGON);
+    glVertex2f(pxp[0], pyp[0]);  // Top left
+    glVertex2f(pxp[1], pyp[1]);  // Top right
+    glVertex2f(pxp[2], pyp[2]);  // Bottom right
+    glVertex2f(pxp[3], pyp[3]);  // Bottom left
+    glEnd();
+
+    if (polyman_mouthOpen) {
+        glBegin(GL_POLYGON);
+        glVertex2f(pxp[4]=0, pyp[4]=0);  // Top right
+        glVertex2f(pxp[5] , pyp[5]);  // Top right
+        glVertex2f(pxp[6], pyp[6]);  // Bottom right
+        glVertex2f(pxp[7], pyp[7]);  // Bottom left 
+        glEnd();
+    }
+    else {
+        // Draw the full lower trapezoid as normal
+        glBegin(GL_POLYGON);
+        glVertex2f(pxp[4], pyp[4]);  // Top left
+        glVertex2f(pxp[5], pyp[5]);  // Top right
+        glVertex2f(pxp[6], pyp[6]);  // Bottom right
+        glVertex2f(pxp[7], pyp[7]);  // Bottom left
+        glEnd();
+    }
+
+    // Draw feet as lines
+    glColor3f(1.0, 1.0, 0.0); // color for feet
+    glBegin(GL_LINES);
+    // Foot #1
+    glVertex2f(pxp[8], pyp[8]);   // Foot #1 top
+    glVertex2f(pxp[9], pyp[9]);   // Foot #1 bottom left
+    glVertex2f(pxp[9], pyp[9]);   // Foot #1 bottom left
+    glVertex2f(pxp[10], pyp[10]); // Foot #1 bottom right
+
+    // Foot #2
+    glVertex2f(pxp[11], pyp[11]); // Foot #2 top
+    glVertex2f(pxp[12], pyp[12]); // Foot #2 bottom left
+    glVertex2f(pxp[12], pyp[12]); // Foot #2 bottom left
+    glVertex2f(pxp[13], pyp[13]); // Foot #2 bottom right
+    glEnd();
+
+    // Draw an eye for Polyman
+    glPointSize(5.0);
+    glBegin(GL_POINTS);
+    glColor3f(1.0, 0.0, 0.0);  //color for the eye
+    glVertex2f(-0.7, 0.4); // Eye
+    glEnd();
+}
+
+
+
+// ************************* Draw Polywoman Function *************************
+void drawPolywoman(float pxp[], float pyp[]) {
+    glColor3f(1.0, 0.75, 0.8);  //color for the body
+
+    glBegin(GL_POLYGON);
+    glVertex2f(pxp[0], pyp[0]);  // Top left
+    glVertex2f(pxp[1], pyp[1]);  // Top right
+    glVertex2f(pxp[2], pyp[2]);  // Bottom right
+    glVertex2f(pxp[3], pyp[3]);  // Bottom left
+    glEnd();
+
+    // If the mouth is open, reshape the lower trapezoid and skip drawing the left line
+    if (polywoman_mouthOpen) {
+        glBegin(GL_POLYGON);
+		glVertex2f(pxp[4], pyp[4]);  // Top left
+        glVertex2f(pxp[5] = 0, pyp[5] = 0);  // Top right
+        glVertex2f(pxp[6], pyp[6]);  // Bottom right
+        glVertex2f(pxp[7], pyp[7]);  // Bottom left
+        glEnd();
+    }
+    else {
+        glBegin(GL_POLYGON);
+        glVertex2f(pxp[4], pyp[4]);  // Top left
+        glVertex2f(pxp[5], pyp[5]);  // Top right
+        glVertex2f(pxp[6], pyp[6]);  // Bottom right
+        glVertex2f(pxp[7], pyp[7]);  // Bottom left
+        glEnd();
+    }
+
+    // Draw feet as lines
+    glColor3f(1.0, 0.75, 0.8); //color for feet
+    glBegin(GL_LINES);
+    // Foot #1
+    glVertex2f(pxp[8], pyp[8]);   // Foot #1 top
+    glVertex2f(pxp[9], pyp[9]);   // Foot #1 bottom left
+    glVertex2f(pxp[9], pyp[9]);   // Foot #1 bottom left
+    glVertex2f(pxp[10], pyp[10]); // Foot #1 bottom right
+
+    // Foot #2
+    glVertex2f(pxp[11], pyp[11]); // Foot #2 top
+    glVertex2f(pxp[12], pyp[12]); // Foot #2 bottom left
+    glVertex2f(pxp[12], pyp[12]); // Foot #2 bottom left
+    glVertex2f(pxp[13], pyp[13]); // Foot #2 bottom right
+    glEnd();
+
+    // Draw an eye for Polywoman
+    glPointSize(5.0);
+    glBegin(GL_POINTS);
+    glColor3f(0.0, 0.0, 0.0);  // Red color for the eye
+    glVertex2f(0.7, 0.4); // Eye
+    glEnd();
+
+    // Draw hair
+    glColor3f(0.4, 0.26, 0.13);  //color for the hair
+    glBegin(GL_TRIANGLES);
+    // Hair spike 1
+    glVertex2f(pxp[15], pyp[15]);  // Base left
+    glVertex2f(pxp[16], pyp[16]);  // Tip
+    glVertex2f(pxp[17], pyp[17]);  // Base middle
+
+    // Hair spike 2
+    glVertex2f(pxp[17], pyp[17]);  // Base middle
+    glVertex2f(pxp[18], pyp[18]);  // Tip
+    glVertex2f(pxp[19], pyp[19]);  // Base right
+
+    glColor3f(0.4, 0.26, 0.13);
+    // Outline for spike 1
+    glBegin(GL_LINE_LOOP);
+    glVertex2f(pxp[15], pyp[15]);
+    glVertex2f(pxp[16], pyp[16]);
+    glVertex2f(pxp[17], pyp[17]);
+    glEnd();
+    // Outline for spike 2
+    glBegin(GL_LINE_LOOP);
+    glVertex2f(pxp[17], pyp[17]);
+    glVertex2f(pxp[18], pyp[18]);
+    glVertex2f(pxp[19], pyp[19]);
+    glEnd();
+
+    glColor3f(1.0, 0.0, 0.0); // color for the bow
+
+    glBegin(GL_TRIANGLES);
+    glVertex2f(pxp[21], pyp[21]);  // center 
+    glVertex2f(pxp[22], pyp[22]);  // Far left point
+    glVertex2f(pxp[23], pyp[23]);  // Top left point
+    glEnd();
+
+    glBegin(GL_TRIANGLES);
+    glVertex2f(pxp[21], pyp[21]);  //center
+    glVertex2f(pxp[24], pyp[24]);  // Far right point
+    glVertex2f(pxp[25], pyp[25]);  // Top right point
+    glEnd();
+}
+
+// ************************** function setTrans ***********************
+void setTrans(float dx, float dy, float theta, float scale) {
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glTranslatef(dx, dy, 0.0);   // Apply translation
+    glRotatef(theta, 0.0, 0.0, -1.0);  // Apply rotation
+    glScalef(scale, scale, 1.0);      // Apply scaling
+}
+
+// **************************** Function SetupRC *************************************
+void SetupRC(void) {
+    glClearColor(0.0, 0.0, 0.0, 1.0);  // Background color: Black
+}
+
+// ******************************** Function Timer ****************************************/
+void TimerFunction(int value)
+{
+    static float moveSpeed = 0.05;  // Speed for horizontal movement
+    static float jumpSpeed = 0.1;   // Speed for vertical movement
+    static float rotationSpeed = 10.0; // Speed for rotation
+    static int timeCounter = 0;     // Counter for timing purposes
+
+    switch (frame) {
+    case 1: // Polyman enters from the right
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= 0.0) {
+            frame = 2;
+        }
+        break;
+
+    case 2: // Polywoman enters from the left
+        polywoman_dx += moveSpeed;
+        if (polywoman_dx >= -4.0) {
+            frame = 3;
+        }
+        break;
+
+    case 3: // Polyman flips in the center
+        polyman_dy += jumpSpeed;
+        polyman_theta += rotationSpeed;
+        polyman_mouthOpen = true;
+        if (polyman_theta >= 360.0) {
+            polyman_theta = 0.0;
+            polyman_mouthOpen = false;
+            frame = 4;
+        }
+        break;
+    case 4: // Polywoman rocks back and forth in approval
+        timeCounter++;
+        if (polyman_dy > -3.0) {
+            polyman_dy -= jumpSpeed;
+        }
+        polywoman_theta = 10.0 * sin(0.1 * timeCounter);
+        polywoman_mouthOpen = true;
+        if (timeCounter >= 100) {
+            polywoman_theta = 0.0;
+            polywoman_mouthOpen = false;
+            timeCounter = 0;
+            frame = 5;
+        }
+        break;
+
+    case 5: // Both move off the stage to the left
+        polyman_dx -= moveSpeed;
+        polywoman_dx -= moveSpeed;
+        if (polyman_dx <= -10.0 && polywoman_dx <= -10.0) {
+            frame = 6; // End of animation or reset
+        }
+        break;
+
+    case 6: //Reset animation
+        polyman_dx = 8.0;
+        polyman_dy = -3.0;
+        polywoman_dx = -8.0;
+        polywoman_dy = -3.0;
+        frame = 1;
+        break;
+    }
+    glutPostRedisplay();
+    glutTimerFunc(33, TimerFunction, 1);
+}
