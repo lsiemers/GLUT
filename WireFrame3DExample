@@ -1,0 +1,240 @@
+#include <windows.h>
+#include <GL/glut.h>
+#include <stdlib.h>
+#include <math.h>
+#include <iostream>
+
+using namespace std;
+
+// *********** Global values ************************************************
+float polyman_theta = 0.0;
+float polyman_dx = 8.0, polyman_dy = -3.0;
+float polywoman_theta = 0.0;
+float polywoman_dx = -8.0, polywoman_dy = -3.0;
+
+int frame = 1;
+bool polyman_mouthOpen = false;
+bool polywoman_mouthOpen = false;
+bool isWalking = true;
+
+// Function prototypes
+void RenderScene(void);
+void loadPolyman(float[], float[], float[]);
+void drawPolyman(float[], float[], float[]);
+void loadPolywoman(float[], float[], float[]);
+void drawPolywoman(float[], float[], float[]);
+void setTrans(float, float, float, float);
+void SetupRC(void);
+void TimerFunction(int);
+
+int main(int argc, char** argv) {
+    char header[] = "Polyman and Polywoman 3D Wireframe Animation";
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(560, 440);
+    glutInitWindowPosition(140, 20);
+    SetupRC();
+    glutCreateWindow(header);
+    glutDisplayFunc(RenderScene);
+    glutTimerFunc(30, TimerFunction, 1);
+    glEnable(GL_DEPTH_TEST);
+    glutMainLoop();
+    return 0;
+}
+
+void RenderScene(void) {
+    float px_polyman[15], py_polyman[15], pz_polyman[15];
+    float px_polywoman[27], py_polywoman[27], pz_polywoman[27];
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(45.0, 1.0, 1.0, 50.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(0.0, 0.0, 10.0,   // Eye position
+        0.0, 0.0, 0.0,    // Center position
+        0.0, 1.0, 0.0);   // Up direction
+
+    loadPolyman(px_polyman, py_polyman, pz_polyman);
+    loadPolywoman(px_polywoman, py_polywoman, pz_polywoman);
+
+    // Draw Polyman
+    glPushMatrix();
+    setTrans(polyman_dx, polyman_dy, polyman_theta, 1.0);
+    drawPolyman(px_polyman, py_polyman, pz_polyman);
+    glPopMatrix();
+
+    // Draw Polywoman
+    glPushMatrix();
+    setTrans(polywoman_dx, polywoman_dy, polywoman_theta, 1.0);
+    drawPolywoman(px_polywoman, py_polywoman, pz_polywoman);
+    glPopMatrix();
+
+    glutSwapBuffers();
+}
+
+// ****************************** Load Polyman Function *******************************
+void loadPolyman(float px[], float py[], float pz[]) {
+    // Trapezoid in 3D (Top)
+    px[0] = -5.0 / 8.0; py[0] = 3.0 / 4.0; pz[0] = 0.1;  // Front face top left
+    px[1] = 5.0 / 8.0;  py[1] = 3.0 / 4.0; pz[1] = 0.1;  // Front face top right
+    px[2] = 9.0 / 8.0;  py[2] = 0.0;       pz[2] = 0.1;  // Front face bottom right
+    px[3] = -9.0 / 8.0; py[3] = 0.0;       pz[3] = 0.1;  // Front face bottom left
+
+    // Back face
+    px[4] = -5.0 / 8.0; py[4] = 3.0 / 4.0; pz[4] = -0.1; // Back face top left
+    px[5] = 5.0 / 8.0;  py[5] = 3.0 / 4.0; pz[5] = -0.1; // Back face top right
+    px[6] = 9.0 / 8.0;  py[6] = 0.0;       pz[6] = -0.1; // Back face bottom right
+    px[7] = -9.0 / 8.0; py[7] = 0.0;       pz[7] = -0.1; // Back face bottom left
+}
+
+void drawPolyman(float pxp[], float pyp[], float pzp[]) {
+    glColor3f(1.0, 1.0, 0.0);  // Yellow color for the body
+
+    // Draw the front trapezoid
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(pxp[0], pyp[0], pzp[0]);
+    glVertex3f(pxp[1], pyp[1], pzp[1]);
+    glVertex3f(pxp[2], pyp[2], pzp[2]);
+    glVertex3f(pxp[3], pyp[3], pzp[3]);
+    glEnd();
+
+    // Draw the back trapezoid
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(pxp[4], pyp[4], pzp[4]);
+    glVertex3f(pxp[5], pyp[5], pzp[5]);
+    glVertex3f(pxp[6], pyp[6], pzp[6]);
+    glVertex3f(pxp[7], pyp[7], pzp[7]);
+    glEnd();
+
+    // Connect the front and back faces
+    glBegin(GL_LINES);
+    for (int i = 0; i < 4; i++) {
+        glVertex3f(pxp[i], pyp[i], pzp[i]);
+        glVertex3f(pxp[i + 4], pyp[i + 4], pzp[i + 4]);
+    }
+    glEnd();
+}
+
+// ****************************** Load Polywoman Function *******************************
+void loadPolywoman(float px[], float py[], float pz[]) {
+    // Trapezoid in 3D (Top)
+    px[0] = -5.0 / 8.0; py[0] = 3.0 / 4.0; pz[0] = 0.1;
+    px[1] = 5.0 / 8.0;  py[1] = 3.0 / 4.0; pz[1] = 0.1;
+    px[2] = 9.0 / 8.0;  py[2] = 0.0;       pz[2] = 0.1;
+    px[3] = -9.0 / 8.0; py[3] = 0.0;       pz[3] = 0.1;
+
+    // Back face
+    px[4] = -5.0 / 8.0; py[4] = 3.0 / 4.0; pz[4] = -0.1;
+    px[5] = 5.0 / 8.0;  py[5] = 3.0 / 4.0; pz[5] = -0.1;
+    px[6] = 9.0 / 8.0;  py[6] = 0.0;       pz[6] = -0.1;
+    px[7] = -9.0 / 8.0; py[7] = 0.0;       pz[7] = -0.1;
+}
+
+void drawPolywoman(float pxp[], float pyp[], float pzp[]) {
+    glColor3f(1.0, 0.75, 0.8);  // Pink color for the body
+
+    // Draw the front trapezoid
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(pxp[0], pyp[0], pzp[0]);
+    glVertex3f(pxp[1], pyp[1], pzp[1]);
+    glVertex3f(pxp[2], pyp[2], pzp[2]);
+    glVertex3f(pxp[3], pyp[3], pzp[3]);
+    glEnd();
+
+    // Draw the back trapezoid
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(pxp[4], pyp[4], pzp[4]);
+    glVertex3f(pxp[5], pyp[5], pzp[5]);
+    glVertex3f(pxp[6], pyp[6], pzp[6]);
+    glVertex3f(pxp[7], pyp[7], pzp[7]);
+    glEnd();
+
+    // Connect the front and back faces
+    glBegin(GL_LINES);
+    for (int i = 0; i < 4; i++) {
+        glVertex3f(pxp[i], pyp[i], pzp[i]);
+        glVertex3f(pxp[i + 4], pyp[i + 4], pzp[i + 4]);
+    }
+    glEnd();
+}
+
+// ************************** function setTrans *******************************
+void setTrans(float dx, float dy, float theta, float scale) {
+    glTranslatef(dx, dy, 0.0);           // Translate in 3D space
+    glRotatef(theta, 0.0, 1.0, 0.0);     // Rotate around the Y-axis
+    glScalef(scale, scale, scale);       // Scale uniformly in all axes
+}
+
+// **************************** Function SetupRC *******************************
+void SetupRC(void) {
+    glClearColor(0.0, 0.0, 0.0, 1.0);    // Black background
+}
+
+// ******************************** Function Timer ******************************/
+void TimerFunction(int value) {
+    static float moveSpeed = 0.05;
+    static float jumpSpeed = 0.1;
+    static float rotationSpeed = 10.0;
+    static int timeCounter = 0;
+
+    switch (frame) {
+    case 1: // Polyman enters from the right
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= 0.0) {
+            frame = 2;
+        }
+        break;
+
+    case 2: // Polywoman enters from the left
+        polywoman_dx += moveSpeed;
+        if (polywoman_dx >= -4.0) {
+            frame = 3;
+        }
+        break;
+
+    case 3: // Polyman flips in the center
+        polyman_dy += jumpSpeed;
+        polyman_theta += rotationSpeed;
+        polyman_mouthOpen = true;
+        if (polyman_theta >= 360.0) {
+            polyman_theta = 0.0;
+            polyman_mouthOpen = false;
+            frame = 4;
+        }
+        break;
+    case 4: // Polywoman rocks back and forth in approval
+        timeCounter++;
+        if (polyman_dy > -3.0) {
+            polyman_dy -= jumpSpeed;
+        }
+        polywoman_theta = 10.0 * sin(0.1 * timeCounter);
+        polywoman_mouthOpen = true;
+        if (timeCounter >= 100) {
+            polywoman_theta = 0.0;
+            polywoman_mouthOpen = false;
+            timeCounter = 0;
+            frame = 5;
+        }
+        break;
+
+    case 5: // Both move off the stage to the left
+        polyman_dx -= moveSpeed;
+        polywoman_dx -= moveSpeed;
+        if (polyman_dx <= -10.0 && polywoman_dx <= -10.0) {
+            frame = 6; // End of animation or reset
+        }
+        break;
+
+    case 6: // Reset animation
+        polyman_dx = 8.0;
+        polyman_dy = -3.0;
+        polywoman_dx = -8.0;
+        polywoman_dy = -3.0;
+        frame = 1;
+        break;
+    }
+    glutPostRedisplay();
+    glutTimerFunc(33, TimerFunction, 1);
+}
