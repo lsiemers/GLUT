@@ -7,29 +7,28 @@
 using namespace std;
 
 // *********** Global values ************************************************
-float polyman_theta = 0.0;    // Polyman's rotation angle
-float polyman_theta_2 = 0.0;    // Polyman's rotation angle
-float Moon_dx = 0.0, Moon_dy = -5.0;  // Polyman's position
+static float theta = 0.0, theta2 = 5.0; // Global angular value for rotation
+float Moon_dx = 0.0, Moon_dy = -5.0;  // Moon position Static
 int fact(int);                        // Calculates factorial
 float calcbiezu(float, int, float[]); // Calculates Bézier value at a point u
-int frame = 1;
-bool polyman_mouthOpen = false;
-bool polywoman_mouthOpen = false;
-bool isWalking = true;
 
 // Function prototypes
 void RenderScene(void);
-void loadPolyman(float[], float[], float[]);
-void drawPolyman(float[], float[], float[]);
 void loadMoon(float[], float[], float[]);
 void drawMoon(float[], float[], float[]);
-void setTrans(float, float, float, float, float);  // Apply ModelView transformations
+void loadPolyman(float[], float[], float[]);
+void drawPolyman(float[], float[], float[], float dx, float dy);
 void SetupRC(void);
 void TimerFunction(int);
 float xctrl[4], yctrl[4], uval = 0.0; // Bézier control points for the cube's path
-float polyman_flip_theta = 0.0;  // Polyman's flip angle along the z-axis
+void settrans2(void);                 // Sets the transformation matrix for the cube
+float dx = 0.0, dy = 0.0, dz = 0.0;     // Global movement values for dx, dy, dz
 
-
+// Global variables for the moon's bounding box
+float moonLeft = -5.0f;
+float moonRight = 5.0f;
+float moonBottom = -1.5f;
+float moonTop = 7.5f;
 // Main Program
 int main(int argc, char** argv) {
     char header[] = "PolyWitch Animation by Lukas Siemers";
@@ -45,91 +44,88 @@ int main(int argc, char** argv) {
     glutMainLoop();
     return 0;
 }
-
 // ************************* RenderScene Function *************************
 void RenderScene(void) {
-    float px_polyman[30], py_polyman[30], pz_polyman[30];
-	float px_Moon[30], py_Moon[30], pz_Moon[30];
+    float px_polyman[50], py_polyman[50], pz_polyman[50];
+    float px_Moon[30], py_Moon[30], pz_Moon[30];
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // Clear the buffer
+
+    // Set up the projection matrix
     glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
+    glLoadIdentity();  // Reset projection matrix
     glViewport(0, 0, 540, 440);
     glOrtho(-10.0, 10.0, -7.0, 7.0, 5.0, -5.0);
 
-    // Load Polyman and Polywoman shapes
-    loadPolyman(px_polyman, py_polyman, pz_polyman);
+    // Switch to modelview matrix
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();  // Reset modelview matrix
+
+    // Load shapes
     loadMoon(px_Moon, py_Moon, pz_Moon);
+    drawMoon(px_Moon, py_Moon, pz_Moon);
 
+    loadPolyman(px_polyman, py_polyman, pz_polyman);
 
-    float Uval; // Bézier u value ranging from 0 to 1 to drive the cube
-
-    // Set up the control points
+    // Set up Bézier control points
     xctrl[0] = -10.0;  yctrl[0] = 0.0;  // Right end point
-    xctrl[1] = 25.0;  yctrl[1] = 10.0;  // Control point 1
+    xctrl[1] = 25.0;   yctrl[1] = 10.0; // Control point 1
     xctrl[2] = -25.0;  yctrl[2] = 7.0;  // Control point 2
-    xctrl[3] =10.0; yctrl[3] = 0.0;  // Left End point 
-    
+    xctrl[3] = 10.0;   yctrl[3] = 0.0;  // Left end point
 
-    int ncontrolpts = 4, i;
-    // Draw the control points
-    glPointSize(5.0);
-    glBegin(GL_POINTS);
-    for (i = 0; i < ncontrolpts; i++)
-        glVertex2f(xctrl[i], yctrl[i]);
-    glEnd();
-
-    // Draw the Bézier curve
-    glColor3f(1.0, 0.0, 0.0);
+    // Draw the Bézier curve (static, no transformation)
+    glColor3f(1.0, 1.0, 1.0);  // Curve color
     glBegin(GL_LINE_STRIP);
-    Uval = 0.0;
-    for (i = 0; i <= 200; i++) {
-        glVertex2f(calcbiezu(Uval, 5, xctrl), calcbiezu(Uval, 5, yctrl));
+    float Uval = 0.0;
+    for (int i = 0; i <= 200; i++) {
+        glVertex2f(calcbiezu(Uval, 3, xctrl), calcbiezu(Uval, 3, yctrl));
         Uval += 0.005;
     }
     glEnd();
-    // Draw Polyman
-    glPushMatrix();
-    setTrans(Moon_dx, Moon_dy, polyman_theta, 1.0, 0.0);  // Pass flip theta
-    drawPolyman(px_polyman, py_polyman, pz_polyman);
-	drawMoon(px_Moon, py_Moon, pz_Moon);
-    glPopMatrix();
 
-    
-    glFlush();
+    // Draw the moon (static, no transformation)
+    // ************** Transform and Draw PolyWitch *********************
+    glPushMatrix();  // Save the current modelview matrix
+    // Apply transformations to PolyWitch
+    settrans2();  // This applies translation along the Bézier curve
+    // Draw PolyWitch
+    drawPolyman(px_polyman, py_polyman, pz_polyman, dx, dy);
+    glPopMatrix();  // Restore the previous modelview matrix
+    // Swap buffers
     glutSwapBuffers();
 }
+
 void loadMoon(float px[], float py[], float pz[]) {
-   
-	px[0] = -5.0; py[0] = 5.0; pz[0] = -0.1;  //left
-    px[1] = -4.0; py[1] = 8.0; pz[1] = -0.1;  //Topleft
-    px[2] = -2.0; py[2] = 9.0; pz[2] = -0.1;  //TopRight
-	px[3] = 0.0; py[3] = 9.5; pz[3] = -0.1;  //Right
-	px[4] = 2.0; py[4] = 9.0; pz[4] = -0.1;  //LowerRight
-    px[5] = 4.0; py[5] = 8.0; pz[5] = -0.1;  //LowerRight
-	px[6] = 5.0; py[6] = 5.0; pz[6] = -0.1;  //LowerRight
-	px[7] = 4.0; py[7] = 2.0; pz[7] = -0.1;  //LowerRight
-	px[8] = 2.0; py[8] = 1.0; pz[8] = -0.1;  //LowerRight
-	px[9] = 0.0; py[9] = 0.5; pz[9] = -0.1;  //LowerRight
-	px[10] = -2.0; py[10] = 1.0; pz[10] = -0.1;  //LowerRight
-	px[11] = -4.0; py[11] = 2.0; pz[11] = -0.1;  //LowerRight
+
+    px[0] = -5.0; py[0] = 3.0; pz[0] = -1.1;  //left
+    px[1] = -4.0; py[1] = 6.0; pz[1] = -1.1;  //Topleft
+    px[2] = -2.0; py[2] = 7.0; pz[2] = -1.1;  //TopRight
+    px[3] = 0.0; py[3] = 7.5; pz[3] = -1.1;  //Right
+    px[4] = 2.0; py[4] = 7.0; pz[4] = -1.1;  //LowerRight
+    px[5] = 4.0; py[5] = 6.0; pz[5] = -1.1;  //LowerRight
+    px[6] = 5.0; py[6] = 3.0; pz[6] = -1.1;  //LowerRight
+    px[7] = 4.0; py[7] = 0.0; pz[7] = -1.1;  //LowerRight
+    px[8] = 2.0; py[8] = -1.0; pz[8] = -1.1;  //LowerRight
+    px[9] = 0.0; py[9] = -1.5; pz[9] = -1.1;  //LowerRight
+    px[10] = -2.0; py[10] = -1.0; pz[10] = -1.1;  //LowerRight
+    px[11] = -4.0; py[11] = 0.0; pz[11] = -1.1;;  //LowerRight
 }
 void drawMoon(float pxp[], float pyp[], float pzp[]) {
-	glColor3f(1.0, 0.5, 0.0);
-	glBegin(GL_POLYGON);
-	glVertex3f(pxp[0], pyp[0], pzp[0]);  // Top left
-	glVertex3f(pxp[1], pyp[1], pzp[1]);  // Top right
-	glVertex3f(pxp[2], pyp[2], pzp[2]);  // Bottom right
-	glVertex3f(pxp[3], pyp[3], pzp[3]);  // Bottom left
-	glVertex3f(pxp[4], pyp[4], pzp[4]);  // Bottom left
-	glVertex3f(pxp[5], pyp[5], pzp[5]);  // Bottom left
-	glVertex3f(pxp[6], pyp[6], pzp[6]);  // Bottom left
-	glVertex3f(pxp[7], pyp[7], pzp[7]);  // Bottom left
-	glVertex3f(pxp[8], pyp[8], pzp[8]);  // Bottom left
-	glVertex3f(pxp[9], pyp[9], pzp[9]);  // Bottom left
-	glVertex3f(pxp[10], pyp[10], pzp[10]);  // Bottom left
-	glVertex3f(pxp[11], pyp[11], pzp[11]);  // Bottom left
-	glEnd();
+    glColor3f(1.0, 0.5, 0.0);
+    glBegin(GL_POLYGON);
+    glVertex3f(pxp[0], pyp[0], pzp[0]);  // Top left
+    glVertex3f(pxp[1], pyp[1], pzp[1]);  // Top right
+    glVertex3f(pxp[2], pyp[2], pzp[2]);  // Bottom right
+    glVertex3f(pxp[3], pyp[3], pzp[3]);  // Bottom left
+    glVertex3f(pxp[4], pyp[4], pzp[4]);  // Bottom left
+    glVertex3f(pxp[5], pyp[5], pzp[5]);  // Bottom left
+    glVertex3f(pxp[6], pyp[6], pzp[6]);  // Bottom left
+    glVertex3f(pxp[7], pyp[7], pzp[7]);  // Bottom left
+    glVertex3f(pxp[8], pyp[8], pzp[8]);  // Bottom left
+    glVertex3f(pxp[9], pyp[9], pzp[9]);  // Bottom left
+    glVertex3f(pxp[10], pyp[10], pzp[10]);  // Bottom left
+    glVertex3f(pxp[11], pyp[11], pzp[11]);  // Bottom left
+    glEnd();
 }
 // ****************************** Load Polyman Function ***********************************
 void loadPolyman(float px[], float py[], float pz[]) {
@@ -146,14 +142,14 @@ void loadPolyman(float px[], float py[], float pz[]) {
     px[7] = -5.0 / 8.0; py[7] = -3.0 / 4.0; pz[7] = 1.0;  // Bottom left
 
     // Foot #1 (top to bottom)
-    px[8] = -1.0 / 4.0;  py[8] = -1.0 / 2.0; pz[8] = 0.1;  // Foot #1 (top)
-    px[9] = -1.0 / 4.0;  py[9] = -1.0;       pz[9] = 0.1;  // Foot #1 (bottom left)
-    px[10] = -1.0 / 2.0; py[10] = -1.0;      pz[10] = 0.1; // Foot #1 (bottom right)
+    px[8] = -1.0 / 4.0;  py[8] = -1.0 / 2.0; pz[8] = 0.5;  // Foot #1 (top)
+    px[9] = -1.0 / 4.0;  py[9] = -1.0;       pz[9] = 0.5;  // Foot #1 (bottom left)
+    px[10] = -1.0 / 2.0; py[10] = -1.0;      pz[10] = 0.5; // Foot #1 (bottom right)
 
     // Foot #2 (top to bottom)
-    px[11] = 1.0 / 4.0;  py[11] = -1.0 / 2.0; pz[11] = 0.1; // Foot #2 (top)
-    px[12] = 1.0 / 4.0;  py[12] = -1.0;       pz[12] = 0.1;  // Foot #2 (bottom left)
-    px[13] = 0.0;        py[13] = -1.0;       pz[13] = 0.1;  // Foot #2 (middle bottom)
+    px[11] = 1.0 / 4.0;  py[11] = -1.0 / 2.0; pz[11] = -0.5; // Foot #2 (top)
+    px[12] = 1.0 / 4.0;  py[12] = -1.0;       pz[12] = -0.5;  // Foot #2 (bottom left)
+    px[13] = 0.0;        py[13] = -1.0;       pz[13] = -0.5;  // Foot #2 (middle bottom)
 
 
     //Trapezoid (BACK TOP)
@@ -168,102 +164,126 @@ void loadPolyman(float px[], float py[], float pz[]) {
     px[20] = 5.0 / 8.0;  py[20] = -3.0 / 4.0; pz[20] = -1.0;  // Bottom right
     px[21] = -5.0 / 8.0; py[21] = -3.0 / 4.0; pz[21] = -1.0;  // Bottom left
 
-    //trapezoid (BACK BOTTOM Mouth OPEN)
-    px[22] = 9.0 / 8.0; py[22] = 0.0;        pz[22] = -1.0;  // Top left of bottom trapezoid
-    px[23] = 5.0 / 8.0;  py[23] = -3.0 / 4.0;        pz[23] = -1.0;  // Top right of bottom trapezoid
-    px[24] = -5.0 / 8.0;  py[24] = -3.0 / 4.0; pz[24] = -1.0;  // Bottom right
-    px[25] = -2.0 / 8.0; py[25] = 0; pz[25] = -1.0;  // Bottom left
-    //trapezoid (FRONT BOTTOM Mouth OPEN)
-    px[26] = -9.0 / 8.0; py[26] = 0.0;        pz[26] = -1.0;  // Top left of bottom trapezoid
-    px[27] = 5.0 / 8.0;  py[27] = -3.0 / 4.0;        pz[27] = -1.0;  // Top right of bottom trapezoid
-    px[28] = 5.0 / 8.0;  py[28] = -3.0 / 4.0; pz[28] = -1.0;  // Bottom right
-    px[29] = -2.0 / 8.0; py[29] = 0; pz[29] = -1.0;  // Bottom left
+    px[22] = -1.5; py[22] = -0.75; pz[22] = 0.0; // Left top
+    px[23] = 1.5;  py[23] = -0.75; pz[23] = 0.0; // Right top
+    px[24] = 1.5;  py[24] = -0.80; pz[24] = 0.0; // Right bottom
+    px[25] = -1.5; py[25] = -0.80; pz[25] = 0.0; // Left bottom
+
+    // Broom End (2D)
+    px[26] = 1.5; py[26] = -0.75; pz[26] = 0.0; // Base left
+    px[27] = 2.5; py[27] = -0.5;  pz[27] = 0.0; // Tip
+    px[28] = 2.5; py[28] = -1.0;  pz[28] = 0.0; // Base right
+
+	//Broom End Point
+	px[28] = 1.3; py[28] = -3.0 / 4.0;      pz[28] = 0.0;  // BroomEndPoint #1
+	px[29] = 1.5; py[29] = -3.0 / 4.0;      pz[29] = -1.0;  // BroomEndPoint #1
+	px[30] = 2.5; py[30] = -0.5;      pz[30] = 0.0;  // BroomEndPoint #2
+	px[31] = 2.5; py[31] = -0.5;      pz[31] = -1.0;  // BroomEndPoint #2
+	px[32] = 2.5; py[32] = -1;      pz[32] = 0.0;  // BroomEndPoint #3
+	px[33] = 2.5; py[33] = -1;      pz[33] = -1.0;  // BroomEndPoint #3
+
+	//Witch Hat Base
+	px[34] = -1.0; py[34] = 3.0 / 4.0;      pz[34] = 1.0;  // Witch Hat #1
+	px[35] = -1.0; py[35] = 3.0 / 4.0;      pz[35] = -1.0;  // Witch Hat #1
+	px[36] = 1.0; py[36] = 3.0 / 4.0;      pz[36] = 1.0;  // Witch Hat #2
+	px[37] = 1.0; py[37] = 3.0 / 4.0;      pz[37] = -1.0;  // Witch Hat #2
+
+	//Witch Hat Top
+	px[38] = -0.5; py[38] = 3.0/4.0;      pz[38] = 1.0;  // Witch Hat #3
+	px[39] = -0.5; py[39] = 3.0 / 4.0;      pz[39] = -1.0;  // Witch Hat #3
+	px[40] = 0.5; py[40] = 3.0 / 4.0;      pz[40] = 1.0;  // Witch Hat #4
+	px[41] = 0.5; py[41] = 3.0 / 4.0;      pz[41] = -1.0;  // Witch Hat #4
+	px[42] = 0.0; py[42] = 1.5;      pz[42] = 0.5;  // Witch Hat #5
+
+
 
 }
 // ************************* Draw Polyman Function *************************
-void drawPolyman(float pxp[], float pyp[], float pzp[]) {
+void drawPolyman(float pxp[], float pyp[], float pzp[], float dx, float dy) {
     int i;
-    // Define color arrays for the front, back, and other parts
-    float colors[2][3] = {
-        {1.0, 1.0, 0.0},  // Yellow for the front body
-        {1.0, 1.0, 0.0}   // Orange for the back body
-    };
+
+    // Determine if PolyWitch is in front of the moon
+    bool isInFrontOfMoon = (dx >= moonLeft && dx <= moonRight && dy >= moonBottom && dy <= moonTop);
+
+    // Define colors for the PolyWitch based on position
+    float bodyColor[3];
+    float hatColor[3] = {0.0f, 0.0f, 0.0f}; // Hat remains black
+    float broomColor[3];
+
+    if (isInFrontOfMoon) {
+        // PolyWitch is in front of the moon; make her profile black
+        bodyColor[0] = bodyColor[1] = bodyColor[2] = 0.0f; // Black
+        broomColor[0] = broomColor[1] = broomColor[2] = 0.0f; // Black broom
+    } else {
+        // PolyWitch is outside the moon; use dark color (e.g., purple)
+        bodyColor[0] = 0.5f; // Purple color
+        bodyColor[1] = 0.0f;
+        bodyColor[2] = 0.5f;
+        broomColor[0] = 0.3f; // Dark brown for the broom
+        broomColor[1] = 0.15f;
+        broomColor[2] = 0.0f;
+    }
 
     // Draw the body (front and back)
     for (int side = 0; side <= 1; side++) {
-        glColor3f(colors[side][0], colors[side][1], colors[side][2]);
-        glBegin(GL_POLYGON);
+        glColor3f(bodyColor[0], bodyColor[1], bodyColor[2]);
+        glBegin(GL_QUADS);
         // Front face (side == 0)
         if (side == 0) {
             glVertex3f(pxp[0], pyp[0], pzp[0]);  // Top left
-            glVertex3f(pxp[1], pyp[1], pzp[1]);  // Top right
-            glVertex3f(pxp[2], pyp[2], pzp[2]);  // Bottom right
             glVertex3f(pxp[3], pyp[3], pzp[3]);  // Bottom left
+            glVertex3f(pxp[2], pyp[2], pzp[2]);  // Bottom right
+            glVertex3f(pxp[1], pyp[1], pzp[1]);  // Top right
         }
         // Back face (side == 1)
         else {
             glVertex3f(pxp[14], pyp[14], pzp[14]);  // Top left
-            glVertex3f(pxp[15], pyp[15], pzp[15]);  // Top right
-            glVertex3f(pxp[16], pyp[16], pzp[16]);  // Bottom right
             glVertex3f(pxp[17], pyp[17], pzp[17]);  // Bottom left
+            glVertex3f(pxp[16], pyp[16], pzp[16]);  // Bottom right
+            glVertex3f(pxp[15], pyp[15], pzp[15]);  // Top right
         }
         glEnd();
     }
 
     // Draw the side faces to connect the front and back
-    glColor3f(1.0, 1.0, 0.0);  // Light orange for the sides
+    glColor3f(bodyColor[0], bodyColor[1], bodyColor[2]);
     for (i = 0; i < 4; i++) {
-        glBegin(GL_POLYGON);
-        glVertex3f(pxp[i], pyp[i], pzp[i]);          // Front face vertex
-        glVertex3f(pxp[i + 14], pyp[i + 14], pzp[i + 14]); // Back face vertex
+        glBegin(GL_QUADS);
+        glVertex3f(pxp[i], pyp[i], pzp[i]);                         // Front face vertex
+        glVertex3f(pxp[(i + 1) % 4], pyp[(i + 1) % 4], pzp[(i + 1) % 4]); // Next front face vertex
         glVertex3f(pxp[(i + 1) % 4 + 14], pyp[(i + 1) % 4 + 14], pzp[(i + 1) % 4 + 14]); // Next back face vertex
-        glVertex3f(pxp[(i + 1) % 4], pyp[(i + 1) % 4], pzp[(i + 1) % 4]);  // Next front face vertex
+        glVertex3f(pxp[i + 14], pyp[i + 14], pzp[i + 14]);          // Back face vertex
         glEnd();
     }
 
-    // Connect the front and back faces of the lower trapezoid
+    // Draw the lower trapezoid faces
+    glColor3f(bodyColor[0], bodyColor[1], bodyColor[2]);
+    // Front lower trapezoid
+    glBegin(GL_QUADS);
+    glVertex3f(pxp[4], pyp[4], pzp[4]);  // Top left
+    glVertex3f(pxp[7], pyp[7], pzp[7]);  // Bottom left
+    glVertex3f(pxp[6], pyp[6], pzp[6]);  // Bottom right
+    glVertex3f(pxp[5], pyp[5], pzp[5]);  // Top right
+    glEnd();
+
+    // Back lower trapezoid
+    glBegin(GL_QUADS);
+    glVertex3f(pxp[18], pyp[18], pzp[18]);  // Top left
+    glVertex3f(pxp[21], pyp[21], pzp[21]);  // Bottom left
+    glVertex3f(pxp[20], pyp[20], pzp[20]);  // Bottom right
+    glVertex3f(pxp[19], pyp[19], pzp[19]);  // Top right
+    glEnd();
+
+    // Draw the sides of the lower trapezoid
     for (i = 4; i < 8; i++) {
-        glBegin(GL_POLYGON);
-        glVertex3f(pxp[i], pyp[i], pzp[i]);        // Front face vertex
-        glVertex3f(pxp[i + 14], pyp[i + 14], pzp[i + 14]);  // Back face vertex
-        glVertex3f(pxp[(i + 1) % 4 + 14], pyp[(i + 1) % 4 + 14], pzp[(i + 1) % 4 + 14]); // Next back face vertex
-        glVertex3f(pxp[(i + 1) % 4], pyp[(i + 1) % 4], pzp[(i + 1) % 4]);  // Next front face vertex
+        glBegin(GL_QUADS);
+        glVertex3f(pxp[i], pyp[i], pzp[i]);                         // Front face vertex
+        glVertex3f(pxp[(i + 1) % 4 + 4], pyp[(i + 1) % 4 + 4], pzp[(i + 1) % 4 + 4]); // Next front face vertex
+        glVertex3f(pxp[(i + 1) % 4 + 18], pyp[(i + 1) % 4 + 18], pzp[(i + 1) % 4 + 18]); // Next back face vertex
+        glVertex3f(pxp[i + 14], pyp[i + 14], pzp[i + 14]);          // Back face vertex
         glEnd();
     }
-
-    if (polyman_mouthOpen) {
-        // Draw the mouth (Black)
-        glColor3f(1.0, 1.0, 0.0);  // Black for the mouth
-        glBegin(GL_POLYGON);
-        glVertex3f(pxp[22], pyp[22], pzp[22]);  // Top left
-        glVertex3f(pxp[23], pyp[23], pzp[23]);  // Top right
-        glVertex3f(pxp[24], pyp[24], pzp[24]);  // Bottom right
-        glVertex3f(pxp[25], pyp[25], pzp[25]);  // Bottom left
-        glVertex3f(pxp[26], pyp[26], pzp[26]);  // Bottom left
-        glVertex3f(pxp[27], pyp[27], pzp[27]);  // Bottom left
-        glVertex3f(pxp[28], pyp[28], pzp[28]);  // Bottom left
-        glVertex3f(pxp[29], pyp[29], pzp[29]);  // Bottom left
-        glEnd();
-    }
-    else {
-        glColor3f(1.0, 1.0, 0.0);  // Light orange for lower trapezoid
-        glBegin(GL_POLYGON);
-        glVertex3f(pxp[4], pyp[4], pzp[4]);  // Front top left
-        glVertex3f(pxp[5], pyp[5], pzp[5]);  // Front top right
-        glVertex3f(pxp[6], pyp[6], pzp[6]);  // Front bottom right
-        glVertex3f(pxp[7], pyp[7], pzp[7]);  // Front bottom left
-        glEnd();
-
-        glBegin(GL_POLYGON);
-        glVertex3f(pxp[18], pyp[18], pzp[18]);  // Back top left
-        glVertex3f(pxp[19], pyp[19], pzp[19]);  // Back top right
-        glVertex3f(pxp[20], pyp[20], pzp[20]);  // Back bottom right
-        glVertex3f(pxp[21], pyp[21], pzp[21]);  // Back bottom left
-        glEnd();
-    }
-
-    // Draw feet as lines
-    glColor3f(1.0, 0.7, 0.0); // Color for feet
+    glColor3f(bodyColor[0], bodyColor[1], bodyColor[2]);
     glBegin(GL_LINES);
     // Foot #1
     glVertex3f(pxp[8], pyp[8], pzp[8]);   // Foot #1 top
@@ -277,15 +297,61 @@ void drawPolyman(float pxp[], float pyp[], float pzp[]) {
     glVertex3f(pxp[12], pyp[12], pzp[12]); // Foot #2 bottom left
     glVertex3f(pxp[13], pyp[13], pzp[13]); // Foot #2 bottom right
     glEnd();
-
-    // Draw the eyes (Red)
-    glPointSize(5.0);
-    glBegin(GL_POINTS);
-    glColor3f(1.0, 0.0, 0.0);  // Red for the eyes
-    glVertex3f(-0.7, 0.4, 0.5);  // Left eye
-    glVertex3f(-0.7, 0.4, -0.5);  // Right eye
+    // Draw the broomstick
+    glColor3f(broomColor[0], broomColor[1], broomColor[2]);
+    glBegin(GL_QUADS);
+    glVertex3f(pxp[22], pyp[22], pzp[22]); // Left top
+    glVertex3f(pxp[25], pyp[25], pzp[25]); // Left bottom
+    glVertex3f(pxp[24], pyp[24], pzp[24]); // Right bottom
+    glVertex3f(pxp[23], pyp[23], pzp[23]); // Right top
     glEnd();
+
+    // Draw the broom end (bristles)
+    glBegin(GL_TRIANGLES);
+    glVertex3f(pxp[28], pyp[28], pzp[28]); // Base left
+    glVertex3f(pxp[30], pyp[30], pzp[30]); // Base right
+    glVertex3f(pxp[32], pyp[32], pzp[32]); // Tip
+    glEnd();
+    // Draw feet as lines
+    
+    glColor3f(0.0, 0.0, 0.0);  // Black color for the hat base
+    glBegin(GL_POLYGON);
+
+    // Base of the hat (square base for simplicity)
+    glVertex3f(pxp[34], pyp[34], pzp[34]);  // Bottom-left front
+    glVertex3f(pxp[35], pyp[35], pzp[35]);  // Bottom-left back
+    glVertex3f(pxp[37], pyp[37], pzp[37]);  // Bottom-right back
+    glVertex3f(pxp[36], pyp[36], pzp[36]);  // Bottom-right front
+
+    glEnd();
+
+    glColor3f(0.0f, 0.0f, 0.0f);  // Black color for the hat
+
+    glPushMatrix();
+
+    glTranslatef(0.0f, 0.75f, 0.0f);
+    glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
+    // Create a quadric object
+    GLUquadricObj* quadObj = gluNewQuadric();
+    // Draw the cone (hat)
+
+    gluCylinder(quadObj, 0.6f, 0.0f, 1.0f, 20, 20);
+    gluDeleteQuadric(quadObj);
+    glPopMatrix();
+    // Draw Witch Hat Top (cone-like structure)
+
+    // Draw the eyes (only when not in front of the moon)
+        glPointSize(5.0);
+        glBegin(GL_POINTS);
+        glColor3f(1.0, 0.0, 0.0);  // Red for the eyes
+        glVertex3f(-0.7, 0.4, 0.5);  // Left eye
+        glVertex3f(-0.7, 0.4, -0.5);  // Right eye
+        glEnd();
+  
+
+    glFlush();
 }
+
 // ************************* Draw Polywoman Function *************************
 float calcbiezu(float u, int n, float cp[])
 {
@@ -299,7 +365,6 @@ float calcbiezu(float u, int n, float cp[])
     }
     return val;
 }
-
 int fact(int n)
 {
     // Calculates n!
@@ -312,25 +377,42 @@ int fact(int n)
     return fct;
 }
 // ************************** function setTrans ***********************
-void setTrans(float dx, float dy, float theta, float scale, float theta_2) {
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glTranslatef(dx, dy, 0.0);  // Apply translation
-    glRotatef(1.0, 0.0, 0.0, 0.0);  // Apply rotation around the x-axis (flip)
-    glRotatef(theta, theta_2, 1.0, 0.0);  // Apply rotation around the y-axis
-    glScalef(scale, scale, scale);  // Apply scaling
+void settrans2(void) {
+    // Calculate the position of PolyWitch using the Bézier curve
+    float u = 1.0f - uval; // Reverse the parameter to move from right to left
+    dx = calcbiezu(u, 3, xctrl);
+    dy = calcbiezu(u, 3, yctrl);
+    glTranslatef(dx, dy, dz);
+    glRotatef(theta, 0.0, 1.0, 0.0); // Rotate around Y-axis
+    glRotatef(theta2, 0.0, 0.0, 1.0); // Rotate around Z-axis
 }
-
 
 // **************************** Function SetupRC *************************************
 void SetupRC(void) {
-    glClearColor(0.0, 0.0, 0.0, 1.0);  // Background color: Black
+    glClearColor(0.0, 0.0, 0.0, 1.0);   // Background color: Black
+    glEnable(GL_DEPTH_TEST);            // Enable depth testing
+   // glEnable(GL_CULL_FACE);             // Enable face culling
+    glCullFace(GL_BACK);                // Cull back faces
+    glFrontFace(GL_CCW);                // Front faces are counter-clockwise
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Fill polygons
 }
 
 // ******************************** Function Timer ****************************************/
 void TimerFunction(int value)
 {
-   
+    // Update rotation angles
+    theta += 0.1;
+    theta2 += 0.0;
+    // Update the u parameter for the Bézier curve
+    uval += 0.0015;
+    // Check if the PolyWitch has left the scene
+    if (uval >= 1.0) {
+        uval = 0.0;     // Reset the position along the curve
+        theta = 0.0;    // Reset rotation angles if needed
+        theta2 = 0.0;
+        // You can also introduce a delay here if desired
+    }
+    // Redraw the scene with new coordinates
     glutPostRedisplay();
-    glutTimerFunc(33, TimerFunction, 1);
+    glutTimerFunc(15, TimerFunction, 1);
 }
