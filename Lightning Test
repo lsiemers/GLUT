@@ -1,0 +1,170 @@
+#include <windows.h>
+#include <GL/glut.h>
+#include <stdlib.h>
+#include <math.h>
+#include <stdio.h>
+#include <iostream>
+#include <iomanip>
+
+using namespace std;
+
+// Global variables
+float static theta = 0.0, theta2 = 0.0;
+float dx = 0.0, dy = 0.0, dz = 0.0;
+
+// Function declarations
+void init(void);
+void RenderScene(void);
+void loadIcon(float[][4], float[][4], float[][4], float[][3], float[][3], float[], float[], float[]);
+void calcNormals(float, float, float, float, float, float, float, float, float, float&, float&, float&);
+void drawIcon(float[][4], float[][4], float[][4], float[][3], float[][3], float[], float[], float[]);
+void setTransform(void);
+void SetupRC(void);
+void TimerFunction(int);
+
+int main(int argc, char** argv) {
+    char header[] = "Lights and Cube by Joe Student";
+
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    SetupRC();
+
+    // Initialize window size and position
+    glutInitWindowSize(560, 440);
+    glutInitWindowPosition(140, 20);
+
+    // Open and Label Window
+    glutCreateWindow(header);
+    glutDisplayFunc(RenderScene);
+    glutTimerFunc(500, TimerFunction, 1);
+    glutMainLoop();
+
+    return 0;
+}
+
+// Render the 3D scene
+void RenderScene(void) {
+    float x[6][4], y[6][4], z[6][4], fcolor[6][3], nvector[6][3], lx[2], ly[2], lz[2];
+
+    float ambientLight[] = { 1.0, 1.0, 1.0, 1.0 };
+    float diffuseLight[] = { 1.0, 1.0, 1.0, 1.0 };
+    float specular[] = { 1.0, 1.0, 1.0, 0.0 };
+    float lightPos[] = { -2.0, 4.0, 4.0, 1.0 };
+    float specReflect[] = { 1.0, 1.0, 1.0, 1.0 };
+    float spotDir[] = { 2.0, -4.0, -4.0 };
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glViewport(0, 0, 540, 440);
+    glOrtho(-7.0, 7.0, -7.0, 7.0, -7.0, 7.0);
+
+    loadIcon(x, y, z, fcolor, nvector, lx, ly, lz);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+    glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 60.0);
+    glLightf(GL_LIGHT0, GL_SPOT_EXPONENT, 15.0);
+    glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spotDir);
+
+    glEnable(GL_LIGHT0);
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, specReflect);
+    glMateriali(GL_FRONT, GL_SHININESS, 128);
+
+    glClearColor(0.5, 0.5, 0.5, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    setTransform();
+    drawIcon(x, y, z, fcolor, nvector, lx, ly, lz);
+
+    glutSwapBuffers();
+}
+
+// Load cube data
+void loadIcon(float x[][4], float y[][4], float z[][4], float fcolor[][3], float nvector[][3], float xl[], float yl[], float zl[]) {
+    // Front face
+    x[0][0] = -1.0; y[0][0] = 1.0; z[0][0] = 1.0;
+    x[0][1] = -1.0; y[0][1] = -1.0; z[0][1] = 1.0;
+    x[0][2] = 1.0; y[0][2] = -1.0; z[0][2] = 1.0;
+    x[0][3] = 1.0; y[0][3] = 1.0; z[0][3] = 1.0;
+
+    fcolor[0][0] = 0.25; fcolor[0][1] = 0.0; fcolor[0][2] = 0.25;
+    calcNormals(x[0][1], y[0][1], z[0][1], x[0][2], y[0][2], z[0][2], x[0][0], y[0][0], z[0][0], nvector[0][0], nvector[0][1], nvector[0][2]);
+
+    // Right face
+    // Similar loading for other faces...
+
+    // Load line data
+    xl[0] = 0.0; yl[0] = 3.0; zl[0] = 0.0;
+    xl[1] = 0.0; yl[1] = -3.0; zl[1] = 0.0;
+}
+
+// Calculate normals for lighting
+void calcNormals(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float& ui, float& uj, float& uk) {
+    float a1 = x2 - x1, a2 = y2 - y1, a3 = z2 - z1;
+    float b1 = x3 - x1, b2 = y3 - y1, b3 = z3 - z1;
+
+    float ix = a2 * b3 - a3 * b2;
+    float jy = a3 * b1 - a1 * b3;
+    float kz = a1 * b2 - a2 * b1;
+
+    float length = sqrt(ix * ix + jy * jy + kz * kz);
+    ui = ix / length;
+    uj = jy / length;
+    uk = kz / length;
+}
+
+// Draw the cube with transformed data
+void drawIcon(float x[][4], float y[][4], float z[][4], float fcolor[][3], float nvector[][3], float xl[], float yl[], float zl[]) {
+    for (int face = 0; face < 6; face++) {
+        glColor3f(fcolor[face][0], fcolor[face][1], fcolor[face][2]);
+        glBegin(GL_POLYGON);
+        glNormal3f(nvector[face][0], nvector[face][1], nvector[face][2]);
+        for (int i = 0; i < 4; i++) {
+            glVertex3f(x[face][i], y[face][i], z[face][i]);
+        }
+        glEnd();
+    }
+
+    // Render the line through the cube
+    glColor3f(1.0, 0.5, 0.5);
+    glBegin(GL_LINES);
+    glVertex3f(xl[0], yl[0], zl[0]);
+    glVertex3f(xl[1], yl[1], zl[1]);
+    glEnd();
+}
+
+// Set transformation matrix for the cube
+void setTransform(void) {
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glTranslatef(dx, dy, dz);
+    glRotatef(theta, 0.0, 1.0, 0.0);
+    glRotatef(theta2, 1.0, 1.0, 1.0);
+}
+
+// Setup rendering context
+void SetupRC(void) {
+    glClearColor(0.0, 0.0, 1.0, 1.0);
+}
+
+// Timer function to update scene
+void TimerFunction(int value) {
+    theta += 2.0;
+    theta2 += 5.0;
+    if (theta >= 720.0) theta = 0.0;
+
+    glutPostRedisplay();
+    glutTimerFunc(33, TimerFunction, 1);
+}
