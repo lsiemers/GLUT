@@ -1,0 +1,657 @@
+#include <windows.h>
+#include <GL/glut.h>
+#include <stdlib.h>
+#include <math.h>
+#include <iostream>
+#include "glutil.h"
+
+
+using namespace std;
+
+// *********** Global values ************************************************
+float polyman_theta = 0.0;    // Polyman's rotation angle
+float polyman_theta_2 = 0.0;    // Polyman's rotation angle
+float polyman_dx = 8.0, polyman_dy =-6.0;  // Polyman's position
+bool isLightOn = false; // Global variable to track light state
+int frame = 1;
+bool isWalking = false;
+float shakeOffset = 0.0f; // Global variable for shake offset
+float polyman_base_dx = 0.0f; // Base position for shaking
+
+
+// Function prototypes
+void RenderScene(void);
+void loadPolyman(float[], float[], float[]);
+void drawPolyman(float[], float[], float[]);
+void drawDiscoBall(float[], float[], float[]);
+void loadDiscoBall(float[], float[], float[]);
+void loadStage(float[], float[], float[]);
+void drawStage(float[], float[], float[]);
+void setTrans(float, float, float, float, float,float);  // Apply ModelView transformations
+void SetupRC(void);
+void TimerFunction(int);
+float polyman_flip_theta = 0.0;  // Polyman's flip angle along the z-axis
+
+
+// Main Program
+int main(int argc, char** argv) {
+    char header[] = "Polyman D.I.S.C.O by Lukas Siemers";
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glEnable(GL_DEPTH_TEST);
+    glutInitWindowSize(560, 440);
+    glutInitWindowPosition(140, 20);
+    SetupRC();
+    glutCreateWindow(header);
+    glutDisplayFunc(RenderScene);
+    glutTimerFunc(30, TimerFunction, 1);
+    glutMainLoop();
+    return 0;
+}
+
+// ************************* RenderScene Function *************************
+void RenderScene(void) {
+    float px_polyman[30], py_polyman[30], pz_polyman[30];
+	float px_stage[42], py_stage[42], pz_stage[42];
+	float px_discoBall[30], py_discoBall[30], pz_discoBall[30];
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glViewport(0, 0, 540, 440);
+    glOrtho(-10.0, 10.0, -7.0, 7.0, 5.0, -5.0);
+
+    // Load Polyman and Polywoman shapes
+    loadPolyman(px_polyman, py_polyman, pz_polyman);
+	loadStage(px_stage, py_stage, pz_stage);
+	loadDiscoBall(px_discoBall, py_discoBall, pz_discoBall);
+
+    if ( isWalking == true) {
+        float walkAmplitude = 0.15;  // Height of walking animation
+        float walkSpeed = 5.0;       // Walking speed
+        float time = glutGet(GLUT_ELAPSED_TIME) / walkSpeed;
+        py_polyman[8] += walkAmplitude * sin(time);  // Foot #1 (top)
+        py_polyman[9] += walkAmplitude * sin(time); // Foot #1 (bottom left)
+        py_polyman[10] += walkAmplitude * sin(time); // Foot #1 (bottom right)
+
+        py_polyman[11] += walkAmplitude * cos(time); // Foot #2 (top)
+        py_polyman[12] += walkAmplitude * cos(time); // Foot #2 (bottom left)
+        py_polyman[13] += walkAmplitude * cos(time); // Foot #2 (bottom right)
+    }
+
+    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_COLOR_MATERIAL);
+
+    // Set material properties
+    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+    float mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
+    glMateriali(GL_FRONT, GL_SHININESS, 500);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    if (isLightOn) {
+        // Light properties
+        float ambientLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float lightPos[] = { 0.0f, 6.35f, 1.0f, 1.0f };
+        float spotDir[] = { 0.0f, -1.0f, 0.0f };
+
+        // Set light properties
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+        glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spotDir);
+        glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 45.0f);
+        glLightf(GL_LIGHT0, GL_SPOT_EXPONENT, 15.0f);
+        glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+        glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+
+        glEnable(GL_LIGHT0); // Enable the spotlight
+    }
+    else {
+        glDisable(GL_LIGHT0); // Disable the spotlight
+    }
+
+
+    glPushMatrix();
+    setTrans(0.0, -7.0, 0.0, 1.0, 0.0,0.0);  // Pass flip theta
+    drawDiscoBall(px_discoBall, py_discoBall, pz_discoBall);
+    glPopMatrix();
+
+    glPushMatrix();
+    setTrans(0.0, -7.0, 0.0, 1.0,0.0,0.0);  // Pass flip theta
+    drawStage(px_stage, py_stage, pz_stage);
+    glPopMatrix();
+    // Draw Polyman
+    glPushMatrix();
+    setTrans(polyman_dx, polyman_dy, polyman_theta, 1.0, 0.0, shakeOffset);
+    drawPolyman(px_polyman, py_polyman, pz_polyman);
+    glPopMatrix();
+
+    
+    glFlush();
+    glutSwapBuffers();
+}
+// ****************************** Load Polyman Function ***********************************
+void loadPolyman(float px[], float py[], float pz[]) {
+    //trapezoid (FRONT BOTTOM)
+    px[0] = -5.0 / 8.0; py[0] = 3.0 / 4.0;  pz[0] = 1.0;  // Top left
+    px[1] = 5.0 / 8.0;  py[1] = 3.0 / 4.0;  pz[1] = 1.0;  // Top right
+    px[2] = 9.0 / 8.0;  py[2] = 0.0;        pz[2] = 1.0;  // Bottom right
+    px[3] = -9.0 / 8.0; py[3] = 0.0;        pz[3] = 1.0;  // Bottom left
+
+    //trapezoid (FRONT BOTTOM)
+    px[4] = -9.0 / 8.0; py[4] = 0.0;        pz[4] = 1.0;  // Top left of bottom trapezoid
+    px[5] = 9.0 / 8.0;  py[5] = 0.0;        pz[5] = 1.0;  // Top right of bottom trapezoid
+    px[6] = 5.0 / 8.0;  py[6] = -3.0 / 4.0; pz[6] = 1.0;  // Bottom right
+    px[7] = -5.0 / 8.0; py[7] = -3.0 / 4.0; pz[7] = 1.0;  // Bottom left
+
+    // Foot #1 (top to bottom)
+    px[8] = -1.0 / 4.0;  py[8] = -1.0 / 2.0; pz[8] = 0.5;  // Foot #1 (top)
+    px[9] = -1.0 / 4.0;  py[9] = -1.0;       pz[9] = 0.5;  // Foot #1 (bottom left)
+    px[10] = -1.0 / 2.0; py[10] = -1.0;      pz[10] = 0.5; // Foot #1 (bottom right)
+
+    // Foot #2 (top to bottom)
+    px[11] = 1.0 / 4.0;  py[11] = -1.0 / 2.0; pz[11] = -0.5; // Foot #2 (top)
+    px[12] = 1.0 / 4.0;  py[12] = -1.0;       pz[12] = -0.5;  // Foot #2 (bottom left)
+    px[13] = 0.0;        py[13] = -1.0;       pz[13] = -0.5;  // Foot #2 (middle bottom)
+
+
+    //Trapezoid (BACK TOP)
+    px[14] = -5.0 / 8.0; py[14] = 3.0 / 4.0;  pz[14] = -1.0;  // Top left
+    px[15] = 5.0 / 8.0;  py[15] = 3.0 / 4.0;  pz[15] = -1.0;  // Top right
+    px[16] = 9.0 / 8.0;  py[16] = 0.0;        pz[16] = -1.0;  // Bottom right
+    px[17] = -9.0 / 8.0; py[17] = 0.0;        pz[17] = -1.0;  // Bottom left
+
+    //trapezoid (BACK BOTTOM)
+    px[18] = -9.0 / 8.0; py[18] = 0.0;        pz[18] = -1.0;  // Top left of bottom trapezoid
+    px[19] = 9.0 / 8.0;  py[19] = 0.0;        pz[19] = -1.0;  // Top right of bottom trapezoid
+    px[20] = 5.0 / 8.0;  py[20] = -3.0 / 4.0; pz[20] = -1.0;  // Bottom right
+    px[21] = -5.0 / 8.0; py[21] = -3.0 / 4.0; pz[21] = -1.0;  // Bottom left
+
+    //trapezoid (BACK BOTTOM Mouth OPEN)
+    px[22] = 9.0 / 8.0; py[22] = 0.0;        pz[22] = -1.0;  // Top left of bottom trapezoid
+    px[23] = 5.0 / 8.0;  py[23] = -3.0 / 4.0;        pz[23] = -1.0;  // Top right of bottom trapezoid
+    px[24] = -5.0 / 8.0;  py[24] = -3.0 / 4.0; pz[24] = -1.0;  // Bottom right
+    px[25] = -2.0 / 8.0; py[25] = 0; pz[25] = -1.0;  // Bottom left
+    //trapezoid (FRONT BOTTOM Mouth OPEN)
+    px[26] = -9.0 / 8.0; py[26] = 0.0;        pz[26] = -1.0;  // Top left of bottom trapezoid
+    px[27] = 5.0 / 8.0;  py[27] = -3.0 / 4.0;        pz[27] = -1.0;  // Top right of bottom trapezoid
+    px[28] = 5.0 / 8.0;  py[28] = -3.0 / 4.0; pz[28] = -1.0;  // Bottom right
+    px[29] = -2.0 / 8.0; py[29] = 0; pz[29] = -1.0;  // Bottom left
+
+}
+// ************************* Load Stage Function *************************
+void loadStage(float px[], float py[], float pz[]) {
+        //Main Stage at the front
+    px[0] = -5.0 ; py[0] = 2.0;        pz[0] = 1.0;  // Top left
+    px[1] = 5.0 ;  py[1] = 2.0;        pz[1] = 1.0;  // Top right
+    px[2] = -5.0;  py[2] = 0.0;        pz[2] = 1.0;  // Bottom right
+    px[3] = 5.0;   py[3] = 0.0;        pz[3] = 1.0;  // Bottom left
+
+    //Main Stage at the Top
+    px[4] = -5.0;  py[4] = 3.70;        pz[4] = 1.0;  
+    px[5] = 5.0;   py[5] = 3.70;        pz[5] = 1.0;
+    px[6] = -5.0;  py[6] = 2.0;        pz[6] = 1.0;  
+    px[7] = 5.0;   py[7] = 2.0;        pz[7] = 1.0;
+
+    // Right Staircase Upper
+    px[8] = 5.0;  py[8] = 1.25;    pz[8] = 1.0;  
+    px[9] = 5.0;  py[9] = 0.0;     pz[9] = 1.0;  
+    px[10] = 6.75; py[10] = 1.25;   pz[10] = 0.5; 
+	px[11] = 6.75; py[11] = 0.0;    pz[11] = -0.5; 
+
+	px[12] =  5.0;      py[12] = 1.25;      pz[12] = 1.0;  
+	px[13] = 5.0;       py[13] = 2.15;       pz[13] = 1.0;  
+    px[14] = 6.75;       py[14] = 1.25;      pz[14] = 1.0;  
+    px[15] = 6.75;       py[15] = 2.15;       pz[15] = 1.0;  
+
+    //Left Staircase Upper
+    px[16] = -5.0;  py[16] = 1.25;    pz[16] = 1.0;  
+    px[17] = -5.0;  py[17] = 0.0;     pz[17] = 1.0;  
+    px[18] = -6.75; py[18] = 1.25;   pz[18] = 0.5; 
+    px[19] = -6.75; py[19] = 0.0;    pz[19] = -0.5;
+
+    px[20] = -5.0;      py[20] = 1.25;      pz[20] = 1.0;  
+    px[21] = -5.0;       py[21] = 2.15;       pz[21] = 1.0;  
+    px[22] = -6.75;       py[22] = 1.25;      pz[22] = 1.0;  
+    px[23] = -6.75;       py[23] = 2.15;       pz[23] = 1.0;  
+   
+
+	//Right Staircase Lower
+	px[24] = 6.75;  py[24] = 0.0;    pz[24] = 1.0;  
+	px[25] = 6.75;  py[25] = 0.75;     pz[25] = 1.0;  
+	px[26] = 8.25; py[26] = 0.0;   pz[26] = 1.0; 
+	px[27] = 8.25; py[27] = 0.75;    pz[27] = 1.0; 
+
+
+	px[28] = 6.75;      py[28] = 0.75;      pz[28] = 1.0;  
+	px[29] = 6.75;       py[29] = 1.25;       pz[29] = 1.0; 
+    px[30] = 8.25;       py[30] = 0.75;      pz[30] = 1.0;  
+	px[31] = 8.25;       py[31] = 1.25;       pz[31] = 1.0;  
+
+	//Left Staircase Lower
+	px[32] = -6.75;  py[32] = 0.0;    pz[32] = 1.0;  
+	px[33] = -6.75;  py[33] = 0.75;     pz[33] = 1.0;  
+    px[34] = -8.25;  py[34] = 0.0;   pz[34] = 1.0; 
+	px[35] = -8.25;  py[35] = 0.75;    pz[35] = 1.0; 
+
+	px[36] = -6.75;      py[36] = 0.75;      pz[36] = 1.0;  
+	px[37] = -6.75;       py[37] = 1.25;       pz[37] = 1.0;  
+	px[38] = -8.25;       py[38] = 0.75;      pz[38] = 1.0;  
+	px[39] = -8.25;       py[39] = 1.25;       pz[39] = 1.0;  
+
+
+}
+void loadDiscoBall(float px[], float py[], float pz[]) {
+    px[0] = -0.25; py[0] = 13.95;        pz[0] = 1.0;   // Light
+    px[1] = 0.25;  py[1] = 13.95;        pz[1] = 1.0;   // Light
+    px[2] = -0.45;  py[2] = 12.65;        pz[2] = 1.0;  // Light
+    px[3] = 0.45;   py[3] = 12.65;        pz[3] = 1.0;  // Light
+
+  }
+// ************************* Draw Polyman Function *************************
+void drawPolyman(float pxp[], float pyp[], float pzp[]) {
+    int i;
+    // Define color arrays for the front, back, and other parts
+    float colors[2][3] = {
+        {1.0, 1.0, 0.0},  // Yellow for the front body
+        {1.0, 1.0, 0.0}   // Orange for the back body
+    };
+
+    // Draw the body (front and back)
+    for (int side = 0; side <= 1; side++) {
+        glColor3f(colors[side][0], colors[side][1], colors[side][2]);
+        glBegin(GL_POLYGON);
+        // Front face (side == 0)
+        if (side == 0) {
+            glVertex3f(pxp[0], pyp[0], pzp[0]);  // Top left
+            glVertex3f(pxp[1], pyp[1], pzp[1]);  // Top right
+            glVertex3f(pxp[2], pyp[2], pzp[2]);  // Bottom right
+            glVertex3f(pxp[3], pyp[3], pzp[3]);  // Bottom left
+        }
+        // Back face (side == 1)
+        else {
+            glVertex3f(pxp[14], pyp[14], pzp[14]);  // Top left
+            glVertex3f(pxp[15], pyp[15], pzp[15]);  // Top right
+            glVertex3f(pxp[16], pyp[16], pzp[16]);  // Bottom right
+            glVertex3f(pxp[17], pyp[17], pzp[17]);  // Bottom left
+        }
+        glEnd();
+    }
+
+    // Draw the side faces to connect the front and back
+    glColor3f(1.0, 1.0, 0.0);  // Light orange for the sides
+    for (i = 0; i < 4; i++) {
+        glBegin(GL_POLYGON);
+        glVertex3f(pxp[i], pyp[i], pzp[i]);          // Front face vertex
+        glVertex3f(pxp[i + 14], pyp[i + 14], pzp[i + 14]); // Back face vertex
+        glVertex3f(pxp[(i + 1) % 4 + 14], pyp[(i + 1) % 4 + 14], pzp[(i + 1) % 4 + 14]); // Next back face vertex
+        glVertex3f(pxp[(i + 1) % 4], pyp[(i + 1) % 4], pzp[(i + 1) % 4]);  // Next front face vertex
+        glEnd();
+    }
+
+    // Connect the front and back faces of the lower trapezoid
+    for (i = 4; i < 8; i++) {
+        glBegin(GL_POLYGON);
+        glVertex3f(pxp[i], pyp[i], pzp[i]);        // Front face vertex
+        glVertex3f(pxp[i + 14], pyp[i + 14], pzp[i + 14]);  // Back face vertex
+        glVertex3f(pxp[(i + 1) % 4 + 14], pyp[(i + 1) % 4 + 14], pzp[(i + 1) % 4 + 14]); // Next back face vertex
+        glVertex3f(pxp[(i + 1) % 4], pyp[(i + 1) % 4], pzp[(i + 1) % 4]);  // Next front face vertex
+        glEnd();
+    }
+        glColor3f(1.0, 1.0, 0.0);  // Light orange for lower trapezoid
+        glBegin(GL_POLYGON);
+        glVertex3f(pxp[4], pyp[4], pzp[4]);  // Front top left
+        glVertex3f(pxp[5], pyp[5], pzp[5]);  // Front top right
+        glVertex3f(pxp[6], pyp[6], pzp[6]);  // Front bottom right
+        glVertex3f(pxp[7], pyp[7], pzp[7]);  // Front bottom left
+        glEnd();
+
+        glBegin(GL_POLYGON);
+        glVertex3f(pxp[18], pyp[18], pzp[18]);  // Back top left
+        glVertex3f(pxp[19], pyp[19], pzp[19]);  // Back top right
+        glVertex3f(pxp[20], pyp[20], pzp[20]);  // Back bottom right
+        glVertex3f(pxp[21], pyp[21], pzp[21]);  // Back bottom left
+        glEnd();
+    
+    // Draw feet as lines
+    glColor3f(1.0, 0.7, 0.0); // Color for feet
+    glBegin(GL_LINES);
+    // Foot #1
+    glVertex3f(pxp[8], pyp[8], pzp[8]);   // Foot #1 top
+    glVertex3f(pxp[9], pyp[9], pzp[9]);   // Foot #1 bottom left
+    glVertex3f(pxp[9], pyp[9], pzp[9]);   // Foot #1 bottom left
+    glVertex3f(pxp[10], pyp[10], pzp[10]); // Foot #1 bottom right
+
+    // Foot #2
+    glVertex3f(pxp[11], pyp[11], pzp[11]); // Foot #2 top
+    glVertex3f(pxp[12], pyp[12], pzp[12]); // Foot #2 bottom left
+    glVertex3f(pxp[12], pyp[12], pzp[12]); // Foot #2 bottom left
+    glVertex3f(pxp[13], pyp[13], pzp[13]); // Foot #2 bottom right
+    glEnd();
+
+    // Draw the eyes (Red)
+    glPointSize(5.0);
+    glBegin(GL_POINTS);
+    glColor3f(1.0, 0.0, 0.0);  // Red for the eyes
+    glVertex3f(-0.7, 0.4, 0.5);  // Left eye
+    glVertex3f(-0.7, 0.4, -0.5);  // Right eye
+    glEnd();
+}
+// ************************* Draw Polywoman Function *************************
+void drawStage(float pxp[], float pyp[], float pzp[]) {
+    //Main Stage Front
+    glColor3f(0.25f, 0.25f, 0.25f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+    glVertex3f(pxp[0], pyp[0], pzp[0]);  // Bottom left
+    glVertex3f(pxp[1], pyp[1], pzp[1]);  // Bottom right
+    glVertex3f(pxp[3], pyp[3], pzp[3]);  // Top right
+    glVertex3f(pxp[2], pyp[2], pzp[2]);  // Top left
+    glEnd();
+
+	//Maint Stage Top
+    glColor3f(0.4f, 0.4f, 0.4f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+    glVertex3f(pxp[4], pyp[4], pzp[4]);  // Bottom left
+    glVertex3f(pxp[5], pyp[5], pzp[5]);  // Bottom right
+    glVertex3f(pxp[7], pyp[7], pzp[7]);  // Top right
+    glVertex3f(pxp[6], pyp[6], pzp[6]);  // Top left
+    glEnd();
+
+	// Right Staircase
+    glColor3f(0.2f, 0.2f, 0.2f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[8], pyp[8], pzp[8]);  // Bottom left
+	glVertex3f(pxp[9], pyp[9], pzp[9]);  // Bottom right
+	glVertex3f(pxp[11], pyp[11], pzp[11]);  // Top right
+	glVertex3f(pxp[10], pyp[10], pzp[10]);  // Top left
+	glEnd();
+
+    glColor3f(0.4f, 0.4f, 0.4f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[12], pyp[12], pzp[12]);  // Bottom left
+	glVertex3f(pxp[13], pyp[13], pzp[13]);  // Bottom right
+	glVertex3f(pxp[15], pyp[15], pzp[15]);  // Top right
+	glVertex3f(pxp[14], pyp[14], pzp[14]);  // Top left
+	glEnd();
+
+	// Left Staircase
+    glColor3f(0.2f, 0.2f, 0.2f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[16], pyp[16], pzp[16]);  // Bottom left
+	glVertex3f(pxp[17], pyp[17], pzp[17]);  // Bottom right
+	glVertex3f(pxp[19], pyp[19], pzp[19]);  // Top right
+	glVertex3f(pxp[18], pyp[18], pzp[18]);  // Top left
+	glEnd();
+
+    glColor3f(0.4f, 0.4f, 0.4f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[20], pyp[20], pzp[20]);  // Bottom left
+	glVertex3f(pxp[21], pyp[21], pzp[21]);  // Bottom right
+	glVertex3f(pxp[23], pyp[23], pzp[23]);  // Top right
+	glVertex3f(pxp[22], pyp[22], pzp[22]);  // Top left
+	glEnd();
+
+	// Right Staircase Lower
+    glColor3f(0.15f, 0.15f, 0.15f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[24], pyp[24], pzp[24]);  // Bottom left
+	glVertex3f(pxp[25], pyp[25], pzp[25]);  // Bottom right
+	glVertex3f(pxp[27], pyp[27], pzp[27]);  // Top right
+	glVertex3f(pxp[26], pyp[26], pzp[26]);  // Top left
+	glEnd();
+
+    glColor3f(0.4f, 0.4f, 0.4f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[28], pyp[28], pzp[28]);  // Bottom left
+	glVertex3f(pxp[29], pyp[29], pzp[29]);  // Bottom right
+	glVertex3f(pxp[31], pyp[31], pzp[31]);  // Top right
+	glVertex3f(pxp[30], pyp[30], pzp[30]);  // Top left
+	glEnd();
+
+	// Left Staircase Lower
+    glColor3f(0.15f, 0.15f, 0.15f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[32], pyp[32], pzp[32]);  // Bottom left
+	glVertex3f(pxp[33], pyp[33], pzp[33]);  // Bottom right
+	glVertex3f(pxp[35], pyp[35], pzp[35]);  // Top right
+	glVertex3f(pxp[34], pyp[34], pzp[34]);  // Top left
+	glEnd();
+
+    glColor3f(0.4f, 0.4f, 0.4f); // Light grey color
+    glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[36], pyp[36], pzp[36]);  // Bottom left    
+	glVertex3f(pxp[37], pyp[37], pzp[37]);  // Bottom right
+	glVertex3f(pxp[39], pyp[39], pzp[39]);  // Top right
+	glVertex3f(pxp[38], pyp[38], pzp[38]);  // Top left
+	glEnd();
+
+}
+
+void drawDiscoBall(float pxp[], float pyp[], float pzp[]) {
+    
+	glColor3f(0.60, 0.60,0.60); // Blue color
+	glBegin(GL_QUADS); // Begin drawing a quadrilateral
+	glVertex3f(pxp[0], pyp[0], pzp[0]);  // Bottom left
+	glVertex3f(pxp[1], pyp[1], pzp[1]);  // Bottom right
+	glVertex3f(pxp[3], pyp[3], pzp[3]);  // Top right
+	glVertex3f(pxp[2], pyp[2], pzp[2]);  // Top left
+	glEnd();
+
+}
+
+// ************************** function setTrans ***********************
+void setTrans(float dx, float dy, float theta, float scale, float theta_2, float shakeOffset) {
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glTranslatef(dx + shakeOffset, dy, 0.0f);
+    glRotatef(theta_2, 1.0f, 0.0f, 0.0f);  // Rotate around the X-axis
+    glRotatef(theta, 0.0f, 1.0f, 0.0f);    // Rotate around the Z-axis
+    glScalef(scale, scale, scale);
+}
+
+// **************************** Function SetupRC *************************************
+void SetupRC(void) {
+    glClearColor(0.0, 0.0, 0.0, 1.0);  // Background color: Black
+}
+
+// ******************************** Function Timer ****************************************/
+void TimerFunction(int value)
+{
+    static float moveSpeed = 0.05f;  // Speed for horizontal movement
+    static float jumpSpeed = 0.1f;   // Speed for vertical movement
+    static float rotationSpeed = 10.0f; // Speed for rotation
+    static int timeCounter = 0;     // Counter for timing purposes
+    if (frame != 10) {
+        shakeOffset = 0.0f;
+    }
+    switch (frame) {
+    case 1: // Polyman moves towards the stairs
+
+        PlayMusicFromPosition("C:\\Users\\Lukas\\Downloads\\Disco.wav", 18500);
+
+        cout << "CASE 1" << endl;
+        isWalking = true;
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= 8.0f) { // Position of the first step
+            frame = 2;
+        }
+        break;
+    case 2:
+        cout << "CASE 2" << endl;
+
+        // Polyman climbs the first step
+        polyman_dy += jumpSpeed;
+        if (polyman_dy >= -5.1f) { // Position of the second step
+            frame = 3;
+        }
+        break;
+    case 3: // Polyman climbs the next step
+        cout << "CASE 3" << endl;
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= 7.5f) { // Position of the first step
+            frame = 4;
+        }
+        break;
+    case 4:
+        cout << "CASE 4" << endl;
+
+        // Polyman climbs the second step
+        polyman_dy += jumpSpeed;
+        polyman_dx -= moveSpeed;
+        if (polyman_dy >= -4.1f && polyman_dx <= 7.5f) { // Position of the second step
+            frame = 5;
+        }
+        break;
+    case 5:
+        cout << "CASE 5" << endl;
+
+        // Polyman climbs the next step
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= 6.25f) { // Position of the first step
+            frame = 6;
+        }
+        break;
+    case 6:
+        cout << "CASE 6" << endl;
+
+        // Polyman climbs the third step
+        polyman_dy += jumpSpeed;
+        if (polyman_dy >= -3.1f) { // Position of the second step
+            frame = 7;
+        }
+        break;
+    case 7:
+        cout << "CASE 7" << endl;
+
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= 0.0f) { // Position of the first step
+            frame = 8;
+        }
+        break;
+    case 8:
+        cout << "CASE 8" << endl;
+        isLightOn = true;
+        isWalking = false;
+        frame = 9;
+        break;
+    case 9:
+        cout << "CASE 9" << endl;
+        polyman_dy += jumpSpeed;  // Polyman jumps
+        polyman_theta += rotationSpeed;  // Rotation around the x-axis (backflip)
+        polyman_theta_2 += rotationSpeed;  // Rotation around the x-axis (backflip)
+        // Apply the 360-degree backflip rotation on the x-axis
+        glPushMatrix();
+        glTranslatef(polyman_dx, polyman_dy, 1.0);  // Apply translation
+        glRotatef(polyman_theta, 0.0, 0.0, 0.1);    // Apply 360-degree rotation around the x-axis (backflip)
+        glPopMatrix();
+
+        // Complete the full flip once polyman_theta reaches 360 degrees
+        if (polyman_theta >= 450.0) {
+            polyman_theta = 90.0;  // Reset the x-axis rotation after completing the flip
+            timeCounter = 0;  // Reset timeCounter for shaking
+            frame = 10;
+        }
+        break;
+    case 10:
+    {
+        cout << "CASE 10" << endl;
+
+        if (timeCounter == 0) {
+            polyman_base_dx = polyman_dx;
+        }
+
+        if (polyman_dy > -3.0) {
+            polyman_dy -= jumpSpeed;
+        }
+
+        float shakeAmplitude = 0.2f;
+        float shakeFrequency = 0.2f;
+        shakeOffset = shakeAmplitude * sin(shakeFrequency * timeCounter);
+
+        timeCounter++; // Move increment after using timeCounter
+
+        if (polyman_dy <= -3.0) {
+            isWalking = true;
+            polyman_theta += 0.55f;   // Rotation around the x-axis
+
+        }
+
+        if (polyman_theta >= 360.0f) {
+            frame = 11;
+        }
+        break;
+    }
+    case 11:
+        cout << "CASE 11" << endl;
+
+        if (polyman_dy <= -3.0) {
+            isWalking = true;
+            polyman_theta += 0.55f;   // Rotation around the x-axis
+
+        }
+
+        if (polyman_theta >= 360.0f) {
+            frame = 12;
+        }
+        break;
+    case 12:
+        cout << "CASE 12" << endl;
+		cout << polyman_dy << endl;
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= -5.1f) { // Position of the first step
+            polyman_dy -= jumpSpeed;
+            if (polyman_dy <= -3.9f) { // Position of the second step
+                frame = 13;
+            }
+        }
+		break;
+    case 13:
+        isLightOn = false;
+
+        cout << "CASE 13" << endl;
+        cout << "DY" << polyman_dy << endl;
+        cout << "DX" << polyman_dx << endl;
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= -7.4f) { // Position of the first step
+            polyman_dy -= jumpSpeed;
+            if (polyman_dy <= -5.0f) { // Position of the second step
+                frame = 14;
+            }
+        }
+        break;
+
+	case 14:
+        cout << "CASE 14" << endl;
+        cout << polyman_dy << endl;
+        polyman_dx -= moveSpeed;
+        if (polyman_dx <= -7.7f) { // Position of the first step
+            polyman_dy -= jumpSpeed;
+            if (polyman_dy <= -7.7f) { // Position of the second step
+                frame = 15;
+            }
+        }
+        break;
+	case 15:
+        polyman_theta = 0.0;
+        polyman_theta_2 = 0.0;
+        polyman_dx = 8.0;
+        polyman_dy = -6.0;
+        isLightOn = false;
+        frame = 1;
+        isWalking = false;
+        shakeOffset = 0.0f;
+        polyman_base_dx = 0.0f;
+        polyman_flip_theta = 0.0;
+		break;
+    }
+
+
+
+    glutPostRedisplay();
+    glutTimerFunc(33, TimerFunction, 1);
+}
