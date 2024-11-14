@@ -15,19 +15,14 @@
 
 using namespace std;
 
-
-void PlayMusicFromPosition(const std::string& path, int startPositionMillis)
-{
+void PlayMusicFromPosition(const std::string& path, int startPositionMillis){
     std::string command;
-
     // Open the audio file
     command = "open \"" + path + "\" type mpegvideo alias myAudio";
     mciSendStringA(command.c_str(), NULL, 0, NULL);
-
     // Set the playback position
     command = "seek myAudio to " + std::to_string(startPositionMillis);
     mciSendStringA(command.c_str(), NULL, 0, NULL);
-
     // Play the audio file from the specified position
     command = "play myAudio";
     mciSendStringA(command.c_str(), NULL, 0, NULL);
